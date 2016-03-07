@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<seuServerPlugin xmlns="http://seu.sourceforge.net/schema/serverplugin"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://seu.sourceforge.net/schema/ServerPlugin.xsd">
+	<name>SSH plugin</name>
+	<version>${pom.version}</version>
+	<agent>
+		<name>SSH Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.SSHAgent</javaClass>
+		<userInterface>SSHAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>true</authoritativeSource>
+		<enableAccessControl>false</enableAccessControl>
+		<enableAttributeMapping>true</enableAttributeMapping>
+
+		<object systemObject="USERS" soffidObject="user">
+			<property name="selectAll" value="cat /etc/passwd"/>
+			<property name="selectAllParse" value="([^:]*):[^\n]*"/>
+			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*"/>
+			<property name="check" value="fgrep $user /etc/passwd"/>
+			<property name="insert" value="useradd $user"/>
+			<property name="update" value="usermod $user"/>
+			<property name="delete" value="userdel $user"/>
+			<property name="updatePassword" value="-"/>
+			<property name="validatePassword" value="-"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="out" />
+			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
+				direction="in" />
+		</object>
+	</agent>
+	<agent>
+		<name>Shell Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.ShellAgent</javaClass>
+		<userInterface>ShellAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>true</authoritativeSource>
+		<enableAccessControl>false</enableAccessControl>
+		<enableAttributeMapping>true</enableAttributeMapping>
+
+		<object systemObject="USERS" soffidObject="user">
+			<property name="selectAll" value="cat /etc/passwd"/>
+			<property name="selectAllParse" value="([^:]*):[^\n]*"/>
+			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*"/>
+			<property name="check" value="fgrep $user /etc/passwd"/>
+			<property name="insert" value="useradd $user"/>
+			<property name="update" value="usermod $user"/>
+			<property name="delete" value="userdel $user"/>
+			<property name="updatePassword" value="-"/>
+			<property name="validatePassword" value="-"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="out" />
+			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
+				direction="in" />
+		</object>
+	</agent>
+</seuServerPlugin>
