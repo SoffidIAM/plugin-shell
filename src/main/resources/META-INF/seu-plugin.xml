@@ -3,7 +3,7 @@
 <seuServerPlugin xmlns="http://seu.sourceforge.net/schema/serverplugin"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://seu.sourceforge.net/schema/ServerPlugin.xsd">
-	<name>SSH plugin</name>
+	<name>Shell plugins</name>
 	<version>${pom.version}</version>
 	<agent>
 		<name>SSH Agent</name>

@@ -7,9 +7,9 @@
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync.plugins</groupId>
-	<artifactId>ssh-plugin</artifactId>
+	<artifactId>shell-plugin</artifactId>
 	<packaging>jar</packaging>
-	<name>SSH plugin</name>
+	<name>Shell plugin</name>
 	<version>1.0.0-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
