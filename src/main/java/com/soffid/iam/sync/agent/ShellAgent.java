@@ -5,14 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
-import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
@@ -86,20 +81,9 @@ public class ShellAgent extends AbstractShellAgent implements ExtensibleObjectMg
 
 
 
-	private List<String[]> executeSentence(String sentence, ExtensibleObject obj) throws InternalErrorException {
-		return executeSentence(sentence, obj, null);
-	}
 	
-	
-	
-	List<String[]> executeSentence(String sentence, ExtensibleObject obj, 
-			String parseExpression) throws InternalErrorException {
-		List<String[]> result = new LinkedList<String[]>();
-		StringBuffer b = new StringBuffer ();
-
-		parseSentence(sentence, obj, b);
-		
-		String parsedSentence = b.toString().trim();
+	@Override
+	protected String actualExecute(String parsedSentence) throws InternalErrorException {
 		
 		if (debugEnabled)
 		{ 
@@ -114,31 +98,10 @@ public class ShellAgent extends AbstractShellAgent implements ExtensibleObjectMg
 			{
 				buffer.write(i);
 			}
-			if ( parseExpression != null && parseExpression.trim().length() > 0)
-			{
-				Pattern pattern = Pattern.compile(parseExpression);
-				Matcher matcher = pattern.matcher(buffer.toString());
-
-				while (matcher.find())
-				{
-					int count = matcher.groupCount();
-					String row [] = new String[count+1];
-					row[0] = matcher.group();
-					for (int i = 1; i <= count; i++)
-						row[i] = matcher.group(i);
-					result.add(row);
-				}
-			}
-			else
-			{
-				result.add(new String[] {buffer.toString()});
-			}
+			return buffer.toString();
 		} catch (IOException e) {
-			throw new InternalErrorException("Error executing remote command "+sentence+":"+e.getMessage(), e);
+			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		}
-		
-		return result;
-		
 	}
 }
 	

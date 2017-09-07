@@ -62,37 +62,25 @@ public class SSHAgent extends AbstractShellAgent
 		
 		debugEnabled = "true".equals(getDispatcher().getParam7());
 
-		try {
-			if (hashType != null && hashType.length() > 0)
-				digest = MessageDigest.getInstance(hashType);
-		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new InternalErrorException(
-					"Unable to use SHA encryption algorithm ", e);
-		}
+		super.init ();
 	}
 
 
 
-	protected List<String[]> executeSentence(String sentence, ExtensibleObject obj, String parseExpression) throws InternalErrorException {
-		List<String[]> result = new LinkedList<String[]>();
-		StringBuffer b = new StringBuffer ();
-
-		parseSentence(sentence, obj, b);
-		
-		String parsedSentence = b.toString().trim();
-		
+	@Override
+	protected String actualExecute(String parsedSentence) throws InternalErrorException {
 		if (debugEnabled)
 		{ 
 			log.info("Executing "+parsedSentence);
 		}
 		
-		SshTunnel tunnel;
+		SshConnection tunnel;
 		try {
-			tunnel = new SshTunnel(this.server, user, keyFile, password, parsedSentence);
+			tunnel = new SshConnection(this.server, user, keyFile, password, parsedSentence);
 		} catch (JSchException e) {
-			throw new InternalErrorException("Error executing remote command "+sentence+":"+e.getMessage(), e);
+			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		} catch (IOException e) {
-			throw new InternalErrorException("Error executing remote command "+sentence+":"+e.getMessage(), e);
+			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		}
 		try {
 			tunnel.getOutputStream().close();
@@ -103,33 +91,13 @@ public class SSHAgent extends AbstractShellAgent
 				buffer.write(i);
 			}
 			if (tunnel.getExitStatus() != 0)
-				throw new InternalErrorException("SSH command "+sentence+" returned "+tunnel.getExitStatus());
-			if ( parseExpression != null && parseExpression.trim().length() > 0)
-			{
-				Pattern pattern = Pattern.compile(parseExpression);
-				Matcher matcher = pattern.matcher(buffer.toString(charSet));
-
-				while (matcher.find())
-				{
-					int count = matcher.groupCount();
-					String row [] = new String[count+1];
-					for (int i = 0; i <= count; i++)
-						row[i] = matcher.group(i);
-					result.add(row);
-				}
-			}
-			else
-			{
-				result.add(new String[] {buffer.toString()});
-			}
+				throw new InternalErrorException("SSH command returned "+tunnel.getExitStatus());
+			return buffer.toString(charSet);
 		} catch (IOException e) {
-			throw new InternalErrorException("Error executing remote command "+sentence+":"+e.getMessage(), e);
+			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		} finally {
 			tunnel.close();
 		}
-		
-		return result;
-		
 	}
 
 }

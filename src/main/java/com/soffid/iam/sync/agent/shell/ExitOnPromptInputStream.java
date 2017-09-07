@@ -13,7 +13,7 @@ public class ExitOnPromptInputStream extends InputStream {
 
 	Logger log = null;
 	private boolean eof;
-	private ShellTunnel shellTunnel;
+	private AbstractTunnel shellTunnel;
 	private ConsumeErrorThread errorThread;
 	private Object notifier;
 	private ConsumeInputThread inputThread;
@@ -21,7 +21,13 @@ public class ExitOnPromptInputStream extends InputStream {
 	int offset;
 	private boolean persistent;
 	private boolean debug;
+	private boolean error = false;
 	
+	public boolean hasError() {
+		return error;
+	}
+
+
 	public boolean isDebug() {
 		return debug;
 	}
@@ -42,9 +48,11 @@ public class ExitOnPromptInputStream extends InputStream {
 			offset = 0;
 			buffer = null;
 			
-			if (buffer == null)
+			if (buffer == null && errorThread != null)
 			{
 				buffer = errorThread.getLine();
+				if (buffer != null && buffer.length > 0)
+					error = true;
 				if (debug && buffer != null && buffer.length > 0)
 					log.info("ERROR: "+stringify(buffer));
 			}
@@ -121,7 +129,7 @@ public class ExitOnPromptInputStream extends InputStream {
 	}
 
 
-	public ExitOnPromptInputStream(ConsumeInputThread inputThread, ConsumeErrorThread errorThread, Object notifier, ShellTunnel shellTunnel2, boolean persistent, boolean debug, Logger log) {
+	public ExitOnPromptInputStream(ConsumeInputThread inputThread, ConsumeErrorThread errorThread, Object notifier, AbstractTunnel shellTunnel2, boolean persistent, boolean debug, Logger log) {
 		this.inputThread = inputThread;
 		this.errorThread = errorThread;
 		this.notifier = notifier;

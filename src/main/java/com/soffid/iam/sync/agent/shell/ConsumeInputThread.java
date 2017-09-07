@@ -42,8 +42,6 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 				}
 				// Append to buffer
 				bout.write(i);
-//				if (debug)
-//					System.out.write(i);
 				if (pattern != null && in.available() == 0)
 				{
 					Matcher m = pattern.matcher(bout.toString());
@@ -61,7 +59,13 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 							setLine(buffer);
 							bout.reset();
 						}
+					} else if (debug) {
+						log.info (bout.toString()+"<WAITING...>");
 					}
+				} 
+				else if (in.available() == 0 && debug)
+				{
+//					log.info (bout.toString()+"<WAITING...>");
 				}
 				if (i == '\n') {
 					setLine(bout.toByteArray());

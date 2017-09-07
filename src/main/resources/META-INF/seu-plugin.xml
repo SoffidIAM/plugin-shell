@@ -13,6 +13,7 @@
 		<authoritativeSource>true</authoritativeSource>
 		<enableAccessControl>false</enableAccessControl>
 		<enableAttributeMapping>true</enableAttributeMapping>
+		<enableObjectTriggers>true</enableObjectTriggers>
 
 		<object systemObject="USERS" soffidObject="user">
 			<property name="selectAll" value="cat /etc/passwd"/>
@@ -39,6 +40,7 @@
 		<authoritativeSource>true</authoritativeSource>
 		<enableAccessControl>false</enableAccessControl>
 		<enableAttributeMapping>true</enableAttributeMapping>
+		<enableObjectTriggers>true</enableObjectTriggers>
 
 		<object systemObject="USERS" soffidObject="user">
 			<property name="selectAll" value="cat /etc/passwd"/>
@@ -55,6 +57,87 @@
 				direction="out" />
 			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
 				direction="in" />
+		</object>
+	</agent>
+	<agent>
+		<name>Power Shell Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.PowerShellAgent</javaClass>
+		<userInterface>PowerShellAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>true</authoritativeSource>
+		<enableAccessControl>false</enableAccessControl>
+		<enableAttributeMapping>true</enableAttributeMapping>
+		<enableObjectTriggers>true</enableObjectTriggers>
+
+		<object systemObject="USERS" soffidObject="user">
+			<property name="selectAll" value="Get-Mailbox"/>
+			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+			<property name="check" value="fgrep $user /etc/passwd"/>
+			<property name="insert" value="useradd $user"/>
+			<property name="update" value="usermod $user"/>
+			<property name="delete" value="userdel $user"/>
+			<property name="updatePassword" value="-"/>
+			<property name="validatePassword" value="-"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="out" />
+			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
+				direction="in" />
+		</object>
+	</agent>
+	<agent>
+		<name>Exchange Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.ExchangeAgent</javaClass>
+		<userInterface>ExchangeAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>true</authoritativeSource>
+		<enableAccessControl>false</enableAccessControl>
+		<enableAttributeMapping>true</enableAttributeMapping>
+		<enableObjectTriggers>true</enableObjectTriggers>
+
+		<object systemObject="USERS" soffidObject="user">
+			<property name="selectAll" value="Get-Mailbox"/>
+			<property name='selectByAccountName' value='Get-Mailbox "${Name}"'/>
+			<property name="check" value="fgrep $user /etc/passwd"/>
+  			<property name="insert" value='New-Mailbox -UserPrincipalName "${UserPrincipalName}" -Name "${Name}" -Alias "${Alias}" -Room'/>
+			<property name="update" value="usermod $user"/>
+			<property name="delete" value="userdel $user"/>
+			<property name="updatePassword" value="-"/>
+			<property name="validatePassword" value="-"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="out" />
+			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
+				direction="in" />
+		</object>
+	</agent>
+	<agent>
+		<name>Cisco ASA Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.ASAAgent</javaClass>
+		<userInterface>ASAAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>true</authoritativeSource>
+		<enableAccessControl>false</enableAccessControl>
+		<enableAttributeMapping>true</enableAttributeMapping>
+
+		<object systemObject="USERS" soffidObject="user">
+			<property name="selectAll" value="show run user"/>
+			<property name="selectAllParse" value="username ([^ ]+) password.*privilege (\d+)\r\n"/>
+			<property name="selectAllAttributes" value="user level"/>
+			<property name="selectByAccountName" value="show run user"/>
+			<property name="selectByAccountNameParse" value="username ([^ ]+) password.*privilege (\d+)\r\n"/>
+			<property name="selectByAccountNamelAttributes" value="user level"/>
+			<property name="check" value="show run user $user"/>
+			<property name="checkParse" value="username ([^ ]+) password.*privilege (\d+)\r\n"/>
+			<property name="checkAttributes" value="user level"/>
+			<property name="insert" value="username $user password $password encrypted privilege $level"/>
+			<property name="update" value="username $user password $password encrypted privilege $level"/>
+			<property name="delete" value="no username $user"/>
+			<property name="updatePassword" value="username $user password $password encrypted privilege $level"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="inout" />
+			<mapping soffidAttribute='attributes{"level"}' systemAttribute='level'
+				direction="inout" />
+			<mapping soffidAttribute='password' systemAttribute='password'
+				direction="inout" />
 		</object>
 	</agent>
 </seuServerPlugin>

@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.agent;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
 import java.util.Collection;
@@ -10,11 +11,29 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.ObjectMappingTrigger;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
+import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -35,19 +54,37 @@ import es.caib.seycon.util.Base64;
 public abstract class AbstractShellAgent extends Agent {
 
 	private static final String PARSE = "Parse";
+	private static final String ERROR = "Error";
+	private static final String SUCCESS = "Success";
 	private static final String ATTRIBUTES = "Attributes";
+	
 	ValueObjectMapper vom = new ValueObjectMapper();
 	ObjectTranslator objectTranslator = null;
 	private static final long serialVersionUID = 1L;
 	protected boolean debugEnabled;
+	protected boolean xmlOutput = false;
+	
 	/** Hash algorithm */
 	MessageDigest digest = null;
-	protected String hashType;
-	protected String passwordPrefix;
 	private Collection<ExtensibleObjectMapping> objectMappings;
 	Date lastModification = null;
+	protected String passwordPrefix;
+	protected String hashType;
 
+	public void init() throws InternalErrorException 
+	{
+		try {
+			if (hashType != null && hashType.length() > 0)
+				digest = MessageDigest.getInstance(hashType);
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new InternalErrorException(
+					"Unable to use SHA encryption algorithm ", e);
+		}
+	}
+	
 	private String stringify(String str) {
+		if (str == null)
+			return "";
 		StringBuffer sb = new StringBuffer();
 		for (char ch : str.toCharArray()) {
 			if (ch == 10)
@@ -101,14 +138,23 @@ public abstract class AbstractShellAgent extends Agent {
 		return matches;
 	}
 
-	private void updateObject(ExtensibleObject obj)
+	private void updateObject(ExtensibleObject obj, ExtensibleObject soffidObject)
 			throws InternalErrorException {
 		Map<String, String> properties = objectTranslator
 				.getObjectProperties(obj);
-		if (exists(obj, properties)) {
-			update(obj, properties);
+		ExtensibleObject existingObject = new ExtensibleObject();
+		if (exists(obj, properties, existingObject)) {
+			if (preUpdate(soffidObject, obj, existingObject))
+			{
+				update(obj, properties);
+				postUpdate(soffidObject, obj, existingObject);
+			}
 		} else {
-			insert(obj, properties);
+			if (preInsert(soffidObject, obj))
+			{
+				insert(obj, properties);
+				postInsert(soffidObject, obj, obj);
+			}
 		}
 	}
 
@@ -116,30 +162,165 @@ public abstract class AbstractShellAgent extends Agent {
 			throws InternalErrorException {
 		debugObject("Creating object", obj, "");
 		for (String tag : getTags(properties, "insert")) {
-			String sentence = properties.get(tag);
-			String parse = properties.get(tag + PARSE);
-			List<String[]> r = executeSentence(sentence, obj, parse);
-			if (parse != null && r.isEmpty()) {
-				throw new InternalErrorException(
-						"Unexpected result from sentence " + sentence);
-			}
+			executeSentence(properties, tag, obj, null);
 		}
 	}
 
-	abstract List<String[]> executeSentence(String sentence,
-			ExtensibleObject obj, String parse2) throws InternalErrorException;
+	protected List<String[]> executeSentence(Map<String, String> properties, String tag, ExtensibleObject obj,
+			List<String> columnNames) throws InternalErrorException {
+		String sentence = properties.get(tag);
+		String errorExpression = properties.get(tag+ERROR);
+		String successExpression = properties.get(tag+SUCCESS);
+		List<String[]> result = new LinkedList<String[]>();
+		if (columnNames != null)
+			columnNames.clear();
+		StringBuffer b = new StringBuffer ();
 
-	private void delete(ExtensibleObject obj, Map<String, String> properties)
+		parseSentence(sentence, obj, b);
+		
+		String parsedSentence = b.toString().trim();
+
+		String text;
+		try {
+			text = actualExecute( parsedSentence);
+		} catch (InternalErrorException e) {
+			throw new InternalErrorException ("Error executing "+sentence, e);
+		}
+		
+		parseExecutionResult(tag, properties, text, columnNames, result);
+		
+		if ( successExpression != null && ! Pattern.matches(successExpression, text))
+		{
+			throw new InternalErrorException ("Error executing sentence: "+text);
+		}
+		
+		if (errorExpression != null && Pattern.matches(errorExpression, text))
+		{
+			throw new InternalErrorException ("Error executing sentence: "+text);
+		}
+		return result;
+		
+	}
+
+	protected void parseExecutionResult(String tag,
+			Map<String, String> properties, String text, 
+			List<String> columnNames,
+			List<String[]> result)
 			throws InternalErrorException {
-		debugObject("Removing object", obj, "");
-		for (String tag : getTags(properties, "delete")) {
-			String sentence = properties.get(tag);
-			String parse = properties.get(tag + PARSE);
-			List<String[]> r = executeSentence(sentence, obj, parse);
-			if (parse != null && r.isEmpty()) {
-				throw new InternalErrorException(
-						"Unexpected result from sentence " + sentence);
+		String parseExpression = properties.get(tag+PARSE);
+		if ( xmlOutput)
+		{
+			NodeList list;
+			try {
+				Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(text);
+				XPath xpath = XPathFactory.newInstance().newXPath();
+				if (parseExpression != null && parseExpression.trim().length() > 0)
+					list = (NodeList) xpath.compile(parseExpression).evaluate(doc, XPathConstants.NODESET);
+				else
+					list = (NodeList) xpath.compile("/").evaluate(doc, XPathConstants.NODESET);
+			} catch (XPathExpressionException e) {
+				throw new InternalErrorException("Error evaluating XPATH expression "+parseExpression);
+			} catch (SAXException e) {
+				throw new InternalErrorException("Error parsing result "+text);
+			} catch (IOException e) {
+				throw new InternalErrorException("Error parsing result "+text);
+			} catch (ParserConfigurationException e) {
+				throw new InternalErrorException("Error parsing result: "+text);
 			}
+			for ( int i = 0; i < list.getLength(); i ++)
+			{
+				List<String> row = new LinkedList<String>();
+				Node n = list.item(i);
+				if (columnNames != null)
+					populate (columnNames, row, "", n);
+				else
+					row.add(n.getTextContent());
+				result.add(row.toArray(new String[row.size()]));
+			}
+		} 
+		else if ( parseExpression != null && parseExpression.trim().length() > 0)
+		{
+			Pattern pattern = Pattern.compile(parseExpression);
+			Matcher matcher = pattern.matcher(text);
+			if (columnNames != null)
+			{
+				String attributes = properties.get(tag+ ATTRIBUTES);
+				if (attributes != null)
+				{
+					for (String header : attributes .split("[ ,]+"))
+					{
+						columnNames.add(header);
+					}
+				}
+			}
+
+			while (matcher.find())
+			{
+				if (debugEnabled)
+					log.info ("Found on position "+matcher.start());
+				int count = matcher.groupCount();
+				String row [] = new String[count+1];
+				for (int i = 0; i <= count; i++)
+					row[i] = matcher.group(i);
+				result.add(row);
+				if (columnNames != null)
+				{
+					while (columnNames.size() < row.length)
+					{
+						columnNames.add("" + columnNames.size());
+					}
+				}
+			}
+		}
+		else
+		{
+			if (columnNames != null)
+				columnNames.add("1");
+			result.add(new String[] {text});
+		}
+	}
+
+	protected void populate(List<String> columnNames, List<String> row, String name, Node n) {
+		if (n instanceof Element)
+		{
+			for (int i = 0; i < n.getAttributes().getLength(); i++)
+			{
+				Attr att = (Attr) n.getAttributes().item(i);
+				populate (columnNames, row, name+"@"+att.getLocalName(), att.getValue());
+			}
+			populate (columnNames, row, name+"/text()", n.getTextContent());
+		}
+	}
+
+	protected void populate(List<String> columnNames, List<String> row, String name, String s) {
+		int i = 0;
+		for (i = 0; i < columnNames.size() ; i++)
+		{
+			if (columnNames.get(i).equals(name))
+			{
+				break;
+			}
+		}
+		if (i == columnNames.size())
+		{
+			columnNames.add(name);
+		}
+		while (row.size() <= i)
+			row.add(null);
+		row.set(i, s);
+	}
+
+	protected abstract String actualExecute(String parsedSentence) throws InternalErrorException ;
+
+	private void delete(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject soffidObject)
+			throws InternalErrorException {
+		if (preDelete(soffidObject, obj))
+		{
+			debugObject("Removing object", obj, "");
+			for (String tag : getTags(properties, "delete")) {
+				executeSentence(properties, tag, obj, null);
+			}
+			postDelete(soffidObject, obj);
 		}
 	}
 
@@ -147,36 +328,30 @@ public abstract class AbstractShellAgent extends Agent {
 			throws InternalErrorException {
 		debugObject("Updating object", obj, "");
 		for (String tag : getTags(properties, "update")) {
-			String sentence = properties.get(tag);
-			String parse = properties.get(tag + PARSE);
-			List<String[]> r = executeSentence(sentence, obj, parse);
-			if (parse != null && r.isEmpty()) {
-				throw new InternalErrorException(
-						"Unexpected result from sentence " + sentence);
-			}
+			executeSentence(properties, tag, obj, null);
 		}
 	}
 
-	private boolean exists(ExtensibleObject obj, Map<String, String> properties)
+	private boolean exists(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject existingObject)
 			throws InternalErrorException {
+		
 		for (String tag : getTags(properties, "check")) {
-			String sentence = properties.get(tag);
-			String filter = properties.get(tag + PARSE);
-			List<String[]> rows = executeSentence(sentence, obj, filter);
+			List<String> columnNames = new LinkedList<String>();
+			List<String[]> rows = executeSentence(properties, tag, obj, columnNames );
 			if (!rows.isEmpty()) {
 				if (debugEnabled)
 					log.info("Object already exists");
+				String row[] = rows.get(0);
+				for (int i = 0 ; i < row.length; i++)
+				{
+					existingObject.setAttribute(columnNames.get(i), row[i]);
+				}
 				return true;
 			}
 		}
 		if (debugEnabled)
 			log.info("Object does not exist");
 		return false;
-	}
-
-	private List<String[]> executeSentence(String sentence, ExtensibleObject obj)
-			throws InternalErrorException {
-		return executeSentence(sentence, obj, null);
 	}
 
 	private boolean passFilter(String filter, ExtensibleObject eo,
@@ -211,12 +386,30 @@ public abstract class AbstractShellAgent extends Agent {
 				parsedSentence.append(sentence.substring(position, nextDollar));
 				int paramStart = nextDollar + 1;
 				int paramEnd = paramStart;
-				while (paramEnd < sentence.length()
-						&& Character.isJavaIdentifierPart(sentence
-								.charAt(paramEnd))) {
-					paramEnd++;
+				String param;
+				if (sentence.charAt(paramEnd) == '{')
+				{
+					int i = 1;
+					paramEnd ++;
+					while (i > 0 && paramEnd < sentence.length())
+					{
+						if (sentence.charAt(paramEnd) == '{')
+							i ++;
+						else if (sentence.charAt(paramEnd) == '}')
+							i --;
+						paramEnd ++;
+					}
+					param = sentence.substring(paramStart+1, paramEnd-1);
 				}
-				String param = sentence.substring(paramStart, paramEnd);
+				else
+				{
+					while (paramEnd < sentence.length()
+							&& Character.isJavaIdentifierPart(sentence
+									.charAt(paramEnd))) {
+						paramEnd++;
+					}
+					param = sentence.substring(paramStart, paramEnd);
+				}
 				Object paramValue = obj.getAttribute(param);
 				parsedSentence.append(paramValue);
 				position = paramEnd;
@@ -259,53 +452,47 @@ public abstract class AbstractShellAgent extends Agent {
 						"selectAll")) {
 					String filter = objMapping.getProperties().get(tag + PARSE);
 					String sentence = objMapping.getProperties().get(tag);
-					List<String[]> rows = executeSentence(sentence,
-							emptyObject, filter);
-					Object[] header = null;
+					List<String> columnNames = new LinkedList<String>();
+					List<String[]> rows = executeSentence(objMapping.getProperties(), tag, emptyObject, columnNames );
 					for (Object[] row : rows) {
-						if (header == null)
-							header = row;
-						else {
-							ExtensibleObject resultObject = new ExtensibleObject();
-							resultObject.setObjectType(objMapping
-									.getSystemObject());
-							for (int i = 0; i < row.length; i++) {
-								String param = header[i].toString();
-								if (resultObject.getAttribute(param) == null) {
-									resultObject.setAttribute(param, row[i]);
-								}
+						ExtensibleObject resultObject = new ExtensibleObject();
+						resultObject
+								.setObjectType(objMapping.getSystemObject());
+						for (int i = 0; i < row.length; i++) {
+							String param = columnNames.get(i);
+							if (resultObject.getAttribute(param) == null) {
+								resultObject.setAttribute(param, row[i]);
 							}
-							debugObject("Got authoritative change",
-									resultObject, "");
-							if (!passFilter(filter, resultObject, null))
-								log.info("Discarding row");
-							else {
-								ExtensibleObject translated = objectTranslator
-										.parseInputObject(resultObject,
-												objMapping);
-								debugObject("Translated to", translated, "");
-								AuthoritativeChange ch = new ValueObjectMapper()
-										.parseAuthoritativeChange(translated);
-								if (ch != null) {
+						}
+						debugObject("Got authoritative change", resultObject,
+								"");
+						if (!passFilter(filter, resultObject, null))
+							log.info("Discarding row");
+						else {
+							ExtensibleObject translated = objectTranslator
+									.parseInputObject(resultObject, objMapping);
+							debugObject("Translated to", translated, "");
+							AuthoritativeChange ch = new ValueObjectMapper()
+									.parseAuthoritativeChange(translated);
+							if (ch != null) {
+								changes.add(ch);
+							} else {
+								Usuari usuari = new ValueObjectMapper()
+										.parseUsuari(translated);
+								if (usuari != null) {
+									if (debugEnabled && usuari != null)
+										log.info("Result user: "
+												+ usuari.toString());
+									Long changeId = new Long(lastChangeId++);
+									ch = new AuthoritativeChange();
+									ch.setId(new AuthoritativeChangeIdentifier());
+									ch.getId().setInternalId(changeId);
+									ch.setUser(usuari);
+									Map<String, Object> userAttributes = (Map<String, Object>) translated
+											.getAttribute("attributes");
+									ch.setAttributes(userAttributes);
 									changes.add(ch);
-								} else {
-									Usuari usuari = new ValueObjectMapper()
-											.parseUsuari(translated);
-									if (usuari != null) {
-										if (debugEnabled && usuari != null)
-											log.info("Result user: "
-													+ usuari.toString());
-										Long changeId = new Long(lastChangeId++);
-										ch = new AuthoritativeChange();
-										ch.setId(new AuthoritativeChangeIdentifier());
-										ch.getId().setInternalId(changeId);
-										ch.setUser(usuari);
-										Map<String, Object> attributes = (Map<String, Object>) translated
-												.getAttribute("attributes");
-										ch.setAttributes(attributes);
-										changes.add(ch);
-										changeIds.add(changeId);
-									}
+									changeIds.add(changeId);
 								}
 							}
 						}
@@ -335,7 +522,7 @@ public abstract class AbstractShellAgent extends Agent {
 					SoffidObjectType.OBJECT_ROLE)) {
 				ExtensibleObject systemObject = objectTranslator
 						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject);
+				updateObject(systemObject, soffidObject);
 			}
 		}
 		// Next update role members
@@ -376,11 +563,7 @@ public abstract class AbstractShellAgent extends Agent {
 							.addAll(selectSystemObjects(
 									sample,
 									objectMapping,
-									objectMapping.getProperties().get(tag),
-									objectMapping.getProperties().get(
-											tag + PARSE),
-									objectMapping.getProperties().get(
-											tag + ATTRIBUTES)));
+									tag));
 					foundSelect = true;
 				}
 				if (foundSelect) {
@@ -417,14 +600,16 @@ public abstract class AbstractShellAgent extends Agent {
 							ExtensibleObject object = objectTranslator
 									.generateObject(new GrantExtensibleObject(
 											rg, getServer()), objectMapping);
-							updateObject(object);
+							updateObject(object, object);
 						}
 					}
 					// Now remove unneeded grants
 					for (Iterator<ExtensibleObject> objectIterator = existingRoles
 							.iterator(); objectIterator.hasNext();) {
 						ExtensibleObject object = objectIterator.next();
-						delete(object, objectMapping.getProperties());
+						ExtensibleObject eo = new ExtensibleObject();
+						eo.setObjectType(objectMapping.getSoffidObject().toString());
+						delete(object, objectMapping.getProperties(), eo);
 					}
 				}
 			}
@@ -434,22 +619,18 @@ public abstract class AbstractShellAgent extends Agent {
 
 	private Collection<? extends ExtensibleObject> selectSystemObjects(
 			ExtensibleObject sample, ExtensibleObjectMapping objectMapping,
-			String sentence, String filter, String attributes)
+			String tag)
 			throws InternalErrorException {
 		List<ExtensibleObject> result = new LinkedList<ExtensibleObject>();
 
-		String attributeList[] = attributes == null ? null : attributes
-				.split("[ ,]+");
-		List<String[]> rows = executeSentence(sentence, sample, filter);
+		List<String> columnNames = new LinkedList<String>();
+		List<String[]> rows = executeSentence(objectMapping.getProperties(), tag, sample, columnNames );
 		for (Object[] row : rows) {
 			StringBuffer buffer = new StringBuffer();
 			ExtensibleObject rowObject = new ExtensibleObject();
 			rowObject.setObjectType(objectMapping.getSystemObject());
 			for (int i = 0; i < row.length; i++) {
-				if (attributes == null || i == 0 || attributes.length() <= i)
-					rowObject.setAttribute(String.valueOf(i), row[i]);
-				else
-					rowObject.setAttribute(attributeList[i - 1], row[i]);
+				rowObject.setAttribute(columnNames.get(i), row[i]);
 
 				if (debugEnabled) {
 					if (i == 0)
@@ -482,7 +663,7 @@ public abstract class AbstractShellAgent extends Agent {
 					SoffidObjectType.OBJECT_ROLE)) {
 				ExtensibleObject systemObject = objectTranslator
 						.generateObject(soffidObject, objectMapping);
-				delete(systemObject, objectMapping.getProperties());
+				delete(systemObject, objectMapping.getProperties(), soffidObject);
 			}
 		}
 		// Next remove role members
@@ -503,10 +684,7 @@ public abstract class AbstractShellAgent extends Agent {
 				for (String tag : getTags(objectMapping.getProperties(),
 						"selectAll")) {
 					for (ExtensibleObject obj : selectSystemObjects(sample,
-							objectMapping,
-							objectMapping.getProperties().get(tag),
-							objectMapping.getProperties().get(tag + PARSE),
-							objectMapping.getProperties().get(tag + ATTRIBUTES))) {
+							objectMapping, tag)) {
 						debugObject("Got system object", obj, "");
 						String accountName = vom
 								.toSingleString(objectTranslator
@@ -539,10 +717,7 @@ public abstract class AbstractShellAgent extends Agent {
 				for (String tag : getTags(objectMapping.getProperties(),
 						"selectByAccountName")) {
 					for (ExtensibleObject obj : selectSystemObjects(
-							translatedSample, objectMapping, objectMapping
-									.getProperties().get(tag), objectMapping
-									.getProperties().get(tag + PARSE),
-							objectMapping.getProperties().get(tag + ATTRIBUTES))) {
+							translatedSample, objectMapping, tag)) {
 						debugObject("Got account system object", obj, "");
 						ExtensibleObject soffidObj = objectTranslator
 								.parseInputObject(obj, objectMapping);
@@ -593,9 +768,7 @@ public abstract class AbstractShellAgent extends Agent {
 						"selectAll")) {
 					for (ExtensibleObject obj : selectSystemObjects(sample,
 							objectMapping,
-							objectMapping.getProperties().get(tag),
-							objectMapping.getProperties().get(tag + PARSE),
-							objectMapping.getProperties().get(tag + ATTRIBUTES))) {
+							tag)) {
 						debugObject("Got role object", obj, "");
 						String roleName = vom
 								.toSingleString(objectTranslator
@@ -636,10 +809,7 @@ public abstract class AbstractShellAgent extends Agent {
 						for (ExtensibleObject obj : selectSystemObjects(
 								translatedSample,
 								objectMapping,
-								objectMapping.getProperties().get(tag),
-								objectMapping.getProperties().get(tag + PARSE),
-								objectMapping.getProperties().get(
-										tag + ATTRIBUTES))) {
+								tag)) {
 							debugObject("Got system role object", obj, "");
 							ExtensibleObject soffidObj = objectTranslator
 									.parseInputObject(obj, objectMapping);
@@ -681,9 +851,7 @@ public abstract class AbstractShellAgent extends Agent {
 						"selectByAccount")) {
 					existingRoles = selectSystemObjects(translatedSample,
 							objectMapping,
-							objectMapping.getProperties().get(tag),
-							objectMapping.getProperties().get(tag + PARSE),
-							objectMapping.getProperties().get(tag + ATTRIBUTES));
+							tag);
 					for (Iterator<? extends ExtensibleObject> objectIterator = existingRoles
 							.iterator(); objectIterator.hasNext();) {
 						ExtensibleObject object = objectIterator.next();
@@ -721,7 +889,7 @@ public abstract class AbstractShellAgent extends Agent {
 					SoffidObjectType.OBJECT_USER)) {
 				ExtensibleObject systemObject = objectTranslator
 						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject);
+				updateObject(systemObject, soffidObject);
 			}
 		}
 		// Next update role members
@@ -772,11 +940,7 @@ public abstract class AbstractShellAgent extends Agent {
 							.addAll(selectSystemObjects(
 									sample,
 									objectMapping,
-									objectMapping.getProperties().get(tag),
-									objectMapping.getProperties().get(
-											tag + PARSE),
-									objectMapping.getProperties().get(
-											tag + ATTRIBUTES)));
+									tag));
 					foundSelect = true;
 				}
 				if (foundSelect) {
@@ -826,12 +990,13 @@ public abstract class AbstractShellAgent extends Agent {
 						if (!found) {
 							newGrant.setOwnerAccountName(accountName);
 							newGrant.setOwnerDispatcher(getCodi());
+							GrantExtensibleObject soffidObject = new GrantExtensibleObject(
+									newGrant, getServer());
 							ExtensibleObject object = objectTranslator
-									.generateObject(new GrantExtensibleObject(
-											newGrant, getServer()),
+									.generateObject(soffidObject,
 											objectMapping);
 							debugObject("Role to grant: ", object, "");
-							updateObject(object);
+							updateObject(object, soffidObject);
 						}
 					}
 					// Now remove unneeded grants
@@ -839,7 +1004,9 @@ public abstract class AbstractShellAgent extends Agent {
 							.iterator(); objectIterator.hasNext();) {
 						ExtensibleObject object = objectIterator.next();
 						debugObject("Role to revoke: ", object, "");
-						delete(object, objectMapping.getProperties());
+						ExtensibleObject eo = new ExtensibleObject();
+						eo.setObjectType(objectMapping.getSoffidObject().getValue());
+						delete(object, objectMapping.getProperties(), eo);
 					}
 				}
 			}
@@ -856,13 +1023,17 @@ public abstract class AbstractShellAgent extends Agent {
 		password = getAccountPassword(accountName);
 		soffidObject.put("password", password);
 
+		if (debugEnabled)
+		{
+			log.info("Updating account "+acc.toString() );
+		}
 		// First update role
 		for (ExtensibleObjectMapping objectMapping : objectMappings) {
 			if (objectMapping.getSoffidObject().equals(
 					SoffidObjectType.OBJECT_ACCOUNT)) {
 				ExtensibleObject systemObject = objectTranslator
 						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject);
+				updateObject(systemObject, soffidObject);
 			}
 		}
 		// Next update role members
@@ -888,7 +1059,7 @@ public abstract class AbstractShellAgent extends Agent {
 					SoffidObjectType.OBJECT_ACCOUNT)) {
 				ExtensibleObject sqlobject = objectTranslator.generateObject(
 						soffidObject, objectMapping);
-				delete(sqlobject, objectMapping.getProperties());
+				delete(sqlobject, objectMapping.getProperties(), soffidObject);
 			}
 		}
 	}
@@ -921,16 +1092,26 @@ public abstract class AbstractShellAgent extends Agent {
 
 				LinkedList<String> updatePasswordTags = getTags(properties,
 						"updatePassword");
-				if (!exists(systemObject, properties)) {
-					insert(systemObject, properties);
+				ExtensibleObject existingObject = new ExtensibleObject();
+				if (!exists(systemObject, properties, existingObject )) {
+					if (preInsert(soffidObject, systemObject))
+					{
+						insert(systemObject, properties);
+						postInsert(soffidObject, systemObject, systemObject);
+					}
 				}
 
-				if (updatePasswordTags.isEmpty())
-					update(systemObject, properties);
-				else {
-					for (String s : updatePasswordTags) {
-						executeSentence(properties.get(s), systemObject);
+				if ( preUpdate(soffidObject, systemObject, existingObject))
+				{
+							
+					if (updatePasswordTags.isEmpty())
+						update(systemObject, properties);
+					else {
+						for (String s : updatePasswordTags) {
+							executeSentence(properties, s, systemObject, null);
+						}
 					}
+					preUpdate(soffidObject, systemObject, existingObject);
 				}
 			}
 		}
@@ -962,9 +1143,11 @@ public abstract class AbstractShellAgent extends Agent {
 				for (String s : updatePasswordTags) {
 					try {
 						String filter = properties.get(s + PARSE);
-						List<String[]> r = executeSentence(properties.get(s),
-								systemObject, filter);
+						List<String[]> r = executeSentence(properties, s,
+								systemObject, null);
 						if (filter == null || !r.isEmpty())
+							return true;
+						if (properties.get(s+SUCCESS) != null)
 							return true;
 					} catch (InternalErrorException e) {
 						log.info("Unable to authenticate password for user "
@@ -997,6 +1180,78 @@ public abstract class AbstractShellAgent extends Agent {
 				}
 			}
 		}
+	}
+
+	
+	protected boolean runTrigger (SoffidObjectTrigger triggerType,
+			ExtensibleObject soffidObject,
+			ExtensibleObject newObject,
+			ExtensibleObject existingObject) throws InternalErrorException
+	{
+		SoffidObjectType sot = SoffidObjectType.fromString(soffidObject.getObjectType());
+		for ( ExtensibleObjectMapping eom : objectTranslator.getObjectsBySoffidType(sot))
+		{
+			if (newObject == null || newObject.getObjectType().equals(eom.getSystemObject()))
+			{
+				for ( ObjectMappingTrigger trigger: eom.getTriggers())
+				{
+					if (trigger.getTrigger().equals (triggerType))
+					{
+						ExtensibleObject eo = new ExtensibleObject();
+						eo.setAttribute("source", soffidObject);
+						eo.setAttribute("newObject", newObject);
+						eo.setAttribute("oldObject", existingObject);
+						if ( ! objectTranslator.evalExpression(eo, trigger.getScript()) )
+						{
+							log.info("Trigger "+triggerType+" returned false");
+							if (debugEnabled)
+							{
+								if (existingObject != null)
+									debugObject("old object", existingObject, "  ");
+								if (newObject != null)
+									debugObject("new object", newObject, "  ");
+							} 
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+		
+	}
+
+	protected boolean preUpdate(ExtensibleObject soffidObject,
+			ExtensibleObject adObject, ExtensibleObject currentEntry)
+			throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.PRE_UPDATE, soffidObject, adObject, currentEntry);
+	}
+
+	protected boolean preInsert(ExtensibleObject soffidObject,
+			ExtensibleObject adObject) throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.PRE_INSERT, soffidObject, adObject, null);
+	}
+
+	protected boolean preDelete(ExtensibleObject soffidObject,
+			ExtensibleObject currentEntry) throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.PRE_DELETE, soffidObject, null, currentEntry);
+	}
+
+	protected boolean postUpdate(ExtensibleObject soffidObject,
+			ExtensibleObject adObject, ExtensibleObject currentEntry)
+			throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.POST_UPDATE, soffidObject, adObject, currentEntry);
+	}
+
+	protected boolean postInsert(ExtensibleObject soffidObject,
+			ExtensibleObject adObject, ExtensibleObject currentEntry)
+			throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.POST_INSERT, soffidObject, adObject, currentEntry);
+	}
+
+	protected boolean postDelete(ExtensibleObject soffidObject,
+			ExtensibleObject currentEntry) throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.POST_DELETE, soffidObject,  null, currentEntry);
 	}
 
 }

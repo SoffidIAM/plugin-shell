@@ -1,15 +1,5 @@
 package com.soffid.iam.sync.agent;
 
-/* -*-mode:java; c-basic-offset:2; indent-tabs-mode:nil -*- */
-/**
- * This program will demonstrate the file transfer from local to remote.
- *   $ CLASSPATH=.:../build javac ScpTo.java
- *   $ CLASSPATH=.:../build java ScpTo file1 user@remotehost:file2
- * You will be asked passwd. 
- * If everything works fine, a local file 'file1' will copied to
- * 'file2' on 'remotehost'.
- *
- */
 import com.jcraft.jsch.*;
 
 import es.caib.seycon.ng.comu.Password;
@@ -17,7 +7,9 @@ import es.caib.seycon.ng.config.Config;
 
 import java.io.*;
 
-public class SshTunnel {
+import org.slf4j.Logger;
+
+public class SshConnection {
 	
 	private OutputStream outputStream;
 
@@ -31,6 +23,10 @@ public class SshTunnel {
 	private Channel channel;
 	private String keyFile;
 	private InputStream inputStream;
+
+	private boolean debug;
+
+	private Logger log;
 
 	private void init () throws IOException, JSchException
 	{
@@ -81,7 +77,7 @@ public class SshTunnel {
 	 * @throws JSchException
 	 * @throws IOException
 	 */
-	public SshTunnel(String host, String user, String keyFile, Password password) throws JSchException, IOException {
+	public SshConnection(String host, String user, String keyFile, Password password) throws JSchException, IOException {
 		this.host = host;
 		this.user = user;
 		this.keyFile = keyFile;
@@ -102,7 +98,7 @@ public class SshTunnel {
 	 * @throws JSchException
 	 * @throws IOException
 	 */
-	public SshTunnel(String host, String user, String keyFile, Password password, String cmd) throws JSchException, IOException {
+	public SshConnection(String host, String user, String keyFile, Password password, String cmd) throws JSchException, IOException {
 		this.host = host;
 		this.user = user;
 		this.password = password;
@@ -172,6 +168,15 @@ public class SshTunnel {
 			}
 		}
 		return channel.getExitStatus();
+	}
+
+	public void setDebug(boolean debugEnabled) {
+		this.debug = debugEnabled;
+		
+	}
+
+	public void setLog(Logger log) {
+		this.log = log;
 	}
 
 }
