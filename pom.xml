@@ -10,7 +10,7 @@
 	<artifactId>shell-plugin</artifactId>
 	<packaging>jar</packaging>
 	<name>Shell plugin</name>
-	<version>1.0.0</version>
+	<version>1.0.1-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
 			<groupId>com.soffid.iam.sync</groupId>
@@ -30,7 +30,7 @@
 	</dependencies>
 	<scm>
 		<connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/plugin-ssh.git</connection>
-	  <tag>shell-plugin-1.0.0</tag>
+	  <tag>HEAD</tag>
   </scm>
 	<licenses>
 		<license>
