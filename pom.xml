@@ -29,7 +29,7 @@
         </dependency>
 	</dependencies>
 	<scm>
-		<connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/plugin-sql.git</connection>
+		<connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/plugin-ssh.git</connection>
 	  <tag>HEAD</tag>
   </scm>
 	<licenses>
