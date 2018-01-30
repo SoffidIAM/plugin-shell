@@ -17,10 +17,28 @@
 
 		<object systemObject="USERS" soffidObject="user">
 			<property name="selectAll" value="cat /etc/passwd"/>
-			<property name="selectAllParse" value="([^:]*):[^\n]*"/>
+			<property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
 			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
-			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*"/>
+			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
 			<property name="check" value="fgrep $user /etc/passwd"/>
+			<property name="checkParse" value="([^:]*):[^\n]*\n"/>
+			<property name="insert" value="useradd $user"/>
+			<property name="update" value="usermod $user"/>
+			<property name="delete" value="userdel $user"/>
+			<property name="updatePassword" value="-"/>
+			<property name="validatePassword" value="-"/>
+			<mapping soffidAttribute='accountName' systemAttribute='user'
+				direction="out" />
+			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
+				direction="in" />
+		</object>
+		<object systemObject="ACCOUNTS" soffidObject="account">
+			<property name="selectAll" value="cat /etc/passwd"/>
+			<property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
+			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
+			<property name="check" value="fgrep $user /etc/passwd"/>
+			<property name="checkParse" value="([^:]*):[^\n]*\n"/>
 			<property name="insert" value="useradd $user"/>
 			<property name="update" value="usermod $user"/>
 			<property name="delete" value="userdel $user"/>
