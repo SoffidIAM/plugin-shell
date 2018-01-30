@@ -1,8 +1,7 @@
 package com.soffid.iam.sync.agent;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,9 +53,15 @@ public class ShellTunnel implements AbstractTunnel {
 	Logger log;
 	private long timeout;
 	private String exitCommand;
+	private String encoding;
 	
 	public ExitOnPromptInputStream execute (String cmd) throws IOException
 	{
+		if (encoding == null)
+		{
+			setEncoding( Charset.defaultCharset().name() );
+		}
+		
 		if (shell == null || shell.trim().length() == 0)
 		{
 			process  = Runtime.getRuntime().exec(cmd);
@@ -64,13 +69,13 @@ public class ShellTunnel implements AbstractTunnel {
 				log.info ("Executing process: "+cmd);
 			process.getOutputStream().close();
 			notifier = new Object ();
-			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier);
+			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);
 			if (debug)
 			{
 				inputThread.setDebug(true);
 				inputThread.setLog(log);
 			}
-			errorThread = new ConsumeErrorThread (process.getErrorStream(), notifier);
+			errorThread = new ConsumeErrorThread (process.getErrorStream(), notifier, encoding);
 			if (debug)
 			{
 				errorThread.setDebug(true);
@@ -85,13 +90,13 @@ public class ShellTunnel implements AbstractTunnel {
 				log.info ("Executing process: "+shell);
 			process = Runtime.getRuntime().exec(shell);
 			notifier = new Object ();
-			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier);
+			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);
 			if (debug)
 			{
 				inputThread.setDebug(true);
 				inputThread.setLog(log);
 			}
-			errorThread = new ConsumeErrorThread (process.getErrorStream(), notifier);
+			errorThread = new ConsumeErrorThread (process.getErrorStream(), notifier, encoding);
 			if (debug)
 			{
 				errorThread.setDebug(true);
@@ -105,8 +110,8 @@ public class ShellTunnel implements AbstractTunnel {
 		if (shell != null && shell.trim().length() > 0)
 		{
 			if (debug)
-				log.info ("Sending: "+cmd);
-			process.getOutputStream().write(cmd.getBytes());
+				log.info ("Sending: ["+encoding+"]"+cmd);
+			process.getOutputStream().write(cmd.getBytes(encoding));
 			process.getOutputStream().write('\n');
 			process.getOutputStream().flush();
 			if (!persistent)
@@ -166,7 +171,7 @@ public class ShellTunnel implements AbstractTunnel {
 		if (exitCommand != null)
 		{
 			try {
-				process.getOutputStream().write(exitCommand.getBytes());
+				process.getOutputStream().write(exitCommand.getBytes(encoding));
 				process.getOutputStream().write('\n');
 				process.getOutputStream().flush();
 			} catch (IOException e) {
@@ -208,5 +213,11 @@ public class ShellTunnel implements AbstractTunnel {
 	{
 		if (timeout > 0)
 			idleTimeout = new Long(System.currentTimeMillis() + timeout);
+	}
+
+	public void setEncoding(String string) {
+		log.info("Setting encoding "+string);
+		this.encoding = string;
+		
 	}
  }

@@ -22,7 +22,7 @@
 			</hbox>
 		</row>
 		<row>
-			<input_etiqueta value="Exchange server PS script (ConnectExchange.ps1)" />
+			<input_etiqueta value="Exchange server PS script (RemoteExchange.ps1 / exshell.psc1)" />
 			<hbox width="90%">
 				<input_dada bind="@param7" lectura="${!canModifyAgent}"
 					width_custom="98%" />
@@ -36,6 +36,20 @@
 				</listitem>
 				<listitem value="true">
 					<listcell label="Yes"/>
+				</listitem>
+			</listbox>
+		</row>
+		<row>
+			<input_etiqueta value="Exchange version:" />
+			<listbox bind="@param0" mold="select"  disabled="{!canModifyAgent}" width="100px">
+				<listitem value="">
+					<listcell label="- Select version -"/>
+				</listitem>
+				<listitem value="2007">
+					<listcell label="2007"/>
+				</listitem>
+				<listitem value="2010">
+					<listcell label="2010+"/>
 				</listitem>
 			</listbox>
 		</row>

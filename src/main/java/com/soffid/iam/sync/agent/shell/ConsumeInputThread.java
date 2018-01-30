@@ -11,8 +11,8 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 	private Pattern pattern = null;
 	private boolean promptFound;
 
-	public ConsumeInputThread(InputStream inputStream, String prompt, Object notifier) {
-		super (inputStream, notifier);
+	public ConsumeInputThread(InputStream inputStream, String prompt, Object notifier, String encoding) {
+		super (inputStream, notifier, encoding);
 		if (prompt != null && prompt.length() > 0)
 			pattern = Pattern.compile(prompt);
 		promptFound = false;
@@ -44,7 +44,7 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 				bout.write(i);
 				if (pattern != null && in.available() == 0)
 				{
-					Matcher m = pattern.matcher(bout.toString());
+					Matcher m = pattern.matcher(bout.toString(encoding));
 					if (m.matches())
 					{
 						this.sleep(100);
@@ -60,7 +60,7 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 							bout.reset();
 						}
 					} else if (debug) {
-						log.info (bout.toString()+"<WAITING...>");
+						log.info (bout.toString(encoding)+"<WAITING...>");
 					}
 				} 
 				else if (in.available() == 0 && debug)

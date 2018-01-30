@@ -22,6 +22,7 @@ public class ConsumeErrorThread extends Thread
 	private Object notifier;
 	protected boolean debug;
 	protected Logger log;
+	protected String encoding;
 
 	public boolean isDebug() {
 		return debug;
@@ -31,8 +32,9 @@ public class ConsumeErrorThread extends Thread
 		this.debug = debug;
 	}
 
-	public ConsumeErrorThread (InputStream errorStream, Object notifier) 
+	public ConsumeErrorThread (InputStream errorStream, Object notifier, String encoding) 
 	{
+		this.encoding = encoding;
 		this.in = errorStream;
 		line = null;
 		finish = false;

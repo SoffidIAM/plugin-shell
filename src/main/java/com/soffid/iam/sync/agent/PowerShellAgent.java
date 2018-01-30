@@ -61,6 +61,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	String xmlOutFile;
 	String prompt;
 	String initialCommand;
+	protected String pscFile;
 
 	/**
 	 * Constructor
@@ -74,7 +75,10 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	public void init() throws InternalErrorException {
 		log.info("Starting Power Shell Agent agent on {}", getDispatcher().getCodi(),
 				null);
-		shell = "powershell -NonInteractive -Command -";
+		if (pscFile == null)
+			shell = "powershell -NonInteractive -Command -";
+		else
+			shell = "powershell -PSConsoleFile \""+pscFile+"\" -NonInteractive -Command -";
 		persistentShell = true;
 		xmlOutput = true;
 		initialCommand = getDispatcher().getParam6();
@@ -116,6 +120,8 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		shellTunnel = new ShellTunnel(shell, persistentShell, prompt+"\r\n");
 		shellTunnel.setDebug(debugEnabled);
 		shellTunnel.setLog (log);
+		shellTunnel.setEncoding("CP850");
+		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
 		try {
 			if (initialCommand != null &&
 					!initialCommand.trim().isEmpty())
@@ -126,7 +132,9 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				System.out.write (b);
 			}
 		} catch (IOException e) {
+			System.exit(1);
 			throw new InternalErrorException ("Unable to open power shell");
+			
 		}
 	}
 
@@ -141,6 +149,11 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			log.info("Executing "+parsedSentence);
 		}
 		
+		if (shellTunnel == null || shellTunnel.isClosed())
+		{
+			shellTunnel = null;
+			initTunnel();
+		}
 		
 		try {
 			File out = new File(xmlOutFile);
@@ -153,9 +166,10 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				buffer.write(i);
 			}
 			
-			if (!out.canRead() || in.hasError())
+			if ((out.length() == 0 && buffer.size() > 0 ) || !out.canRead() || in.hasError())
 			{
-				if (buffer.toString().contains("ManagementObjectNotFoundException"))
+				if (buffer.toString().replaceAll("\\s", "").contains("ManagementObjectNotFoundException") &&
+						parsedSentence.trim().toLowerCase().startsWith("get-"))
 					return "";
 				else
 					throw new InternalErrorException("Error executing remote command :"+buffer.toString());
@@ -170,12 +184,10 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			byte ba[] = buffer.toByteArray();
 			if (ba.length  >= 2 && ba[0] == -2 && ba[1] == -1)
 			{
-				log.info("UTF-16BE:");
 				return new String(ba, 2, ba.length - 2, "UTF-16BE");
 			}
 			else if (ba.length  >= 2 && ba[0] == -1 && ba[1] == -2)
 			{
-				log.info("UTF-16BE:");
 				return new String(ba, 2, ba.length - 2, "UTF-16LE");
 			}
 			else
@@ -206,7 +218,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			builderFactory.setValidating(false);
 			builderFactory.setXIncludeAware(false);
 			Document doc = builderFactory.newDocumentBuilder().parse(new InputSource(new StringReader(text)));
-			expr = XPathFactory.newInstance().newXPath().compile("Obj/Props");
+			expr = XPathFactory.newInstance().newXPath().compile("Obj");
 			list = (NodeList) expr.evaluate(doc.getDocumentElement(), XPathConstants.NODESET);
 		} catch (XPathExpressionException e) {
 			throw new InternalErrorException("Error evaluating XPATH expression: "+e.getMessage()+"\n", e);
@@ -249,9 +261,13 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				{
 					populate(columnNames, row, fqn, child.getTextContent());
 				}
-				else if ("Props".equals(tag) || "Obj".equals(tag))
+				else if ("Props".equals(tag) || "Obj".equals(tag) || "MS".equals(tag))
 				{
 					fetchObject(columnNames, row, child, fqn);					
+				}
+				else if ("DCT".equals(tag) || "Obj".equals(tag))
+				{
+					fetchEntries(columnNames, row, child, fqn);					
 				}
 				else if ("LST".equals(tag))
 				{
@@ -261,6 +277,53 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		}
 		
 	}
+
+	private void fetchEntries(List<String> columnNames, List<String> row, Node n, String prefix) {
+		NodeList children = n.getChildNodes();
+		for (int i = 0; i < children.getLength(); i++)
+		{
+			Node child = children.item(i);
+			if (child instanceof Element)
+			{
+				String tag = ((Element) child).getTagName();
+				if ("En".equals(tag) )
+				{
+					fetchEntry(columnNames, row, child, prefix);
+				}
+			}
+		}
+	}
+
+	private void fetchEntry(List<String> columnNames, List<String> row, Node n, String prefix) {
+		NodeList children = n.getChildNodes();
+		String key = null;
+		String value = "";
+		for (int i = 0; i < children.getLength(); i++)
+		{
+			Node child = children.item(i);
+			if (child instanceof Element)
+			{
+				String tag = ((Element) child).getTagName();
+				String name = ((Element) child).getAttribute("N");
+				if ("S".equals(tag) && name.equals("Key")) 
+				{
+					key = child.getTextContent();
+				}
+				if ("S".equals(tag) && name.equals("Value")) 
+				{
+					value = child.getTextContent();
+				}
+			}
+		}
+		if (key != null)
+		{
+			String fqn = prefix + 
+					( !prefix.isEmpty() && key != null && ! key.isEmpty() ? ".": "") + 
+					( key != null ? key: "");
+			populate(columnNames, row, fqn, value);
+		}
+	}
+
 
 	private void fetchList(List<String> columnNames, List<String> row,
 			Node n, String fqn) {
