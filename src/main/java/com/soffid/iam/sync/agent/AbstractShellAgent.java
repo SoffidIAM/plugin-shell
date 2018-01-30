@@ -314,13 +314,17 @@ public abstract class AbstractShellAgent extends Agent {
 
 	private void delete(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject soffidObject)
 			throws InternalErrorException {
-		if (preDelete(soffidObject, obj))
+		ExtensibleObject existingObject = new ExtensibleObject();
+		if (exists(obj, properties, existingObject)) 
 		{
-			debugObject("Removing object", obj, "");
-			for (String tag : getTags(properties, "delete")) {
-				executeSentence(properties, tag, obj, null);
+			if (preDelete(soffidObject, obj))
+			{
+				debugObject("Removing object", obj, "");
+				for (String tag : getTags(properties, "delete")) {
+					executeSentence(properties, tag, obj, null);
+				}
+				postDelete(soffidObject, obj);
 			}
-			postDelete(soffidObject, obj);
 		}
 	}
 
@@ -692,7 +696,8 @@ public abstract class AbstractShellAgent extends Agent {
 												obj, objectMapping));
 						if (debugEnabled)
 							log.info("Account name = " + stringify(accountName));
-						accountNames.add(accountName);
+						if (accountName != null && ! accountName.isEmpty())
+							accountNames.add(accountName);
 					}
 				}
 			}
