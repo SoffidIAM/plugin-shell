@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.agent;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -15,6 +16,7 @@ public class ExchangeAgent extends PowerShellAgent {
 	private String user;
 	private Password password;
 	private String exchangeServer;
+	private String version;
 
 	/**
 	 * Constructor
@@ -30,9 +32,22 @@ public class ExchangeAgent extends PowerShellAgent {
 				null);
 //		exchangeServer = getDispatcher().getParam6();
 		exchangeDir = getDispatcher().getParam7();
+		if (exchangeDir == null)
+			throw new InternalErrorException("Missing exchange script file");
 		user = getDispatcher().getParam8();
 		password = Password.decode( getDispatcher().getParam9() );
+		version = getDispatcher().getParam0();
 		
+		if ("2007".equals(version))
+		{
+			if (!exchangeDir.endsWith("psc1"))
+				throw new InternalErrorException("Exchange server ps scrict should end with .psc1, usually exshell.psc1");
+		}
+		if (exchangeDir.endsWith("psc1"))
+		{
+			pscFile = exchangeDir;
+			exchangeDir = null;
+		}
 		super.init();
 	}
 
@@ -42,12 +57,32 @@ public class ExchangeAgent extends PowerShellAgent {
 		shellTunnel = new ShellTunnel(shell, persistentShell, prompt+"\r\n");
 		shellTunnel.setDebug(debugEnabled);
 		shellTunnel.setLog (log);
+		shellTunnel.setEncoding("CP850");
+		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
+		String loadScript = exchangeDir != null ? ". '"+exchangeDir+"';" : "";
 		try {
 			String hostName = InetAddress.getLocalHost().getCanonicalHostName();
 			InputStream in ;
 			
-			if (user == null || user.trim().isEmpty())
-				shellTunnel.execute(". '"+exchangeDir+"';"+
+			if (pscFile != null)
+			{
+//				shellTunnel.execute(". '"+exchangeDir+"';");
+				if ("2010".equals(version))
+				{
+					File dir = new File(pscFile).getParentFile();
+					File ps1 = new File(dir, "RemoteExchange.ps1");
+					if (ps1.canRead())
+					{
+						shellTunnel.execute(loadScript+
+								". \""+ps1.getPath()+"\";");
+						shellTunnel.execute(
+								"Connect-ExchangeServer -auto;");
+						
+					}
+				}
+			}
+			else if (user == null || user.trim().isEmpty())
+				shellTunnel.execute(loadScript+
 						"Connect-ExchangeServer -ServerFQDN "+hostName+";");
 			else
 				shellTunnel.execute("$User = \""+user+"\" ;"+
@@ -56,7 +91,7 @@ public class ExchangeAgent extends PowerShellAgent {
 					"$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://"+
 							hostName+"/PowerShell/ -Authentication Kerberos -Credential $C;" +
 					"Import-PSSession $Session; "+
-					". '"+exchangeDir+"';"+
+					loadScript+
 					"Connect-ExchangeServer -ServerFQDN "+hostName+";");
 			in = shellTunnel.execute(
 //					"function prompt{\"\"}; " +
@@ -66,7 +101,8 @@ public class ExchangeAgent extends PowerShellAgent {
 //				System.out.write (b);
 			}
 		} catch (IOException e) {
-			throw new InternalErrorException ("Unable to open power shell");
+			System.exit(1);
+			throw new InternalErrorException ("Unable to open power shell", e);
 		}
 	}
 
