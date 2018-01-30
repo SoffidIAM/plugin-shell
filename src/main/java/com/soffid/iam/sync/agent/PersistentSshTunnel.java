@@ -3,6 +3,7 @@ package com.soffid.iam.sync.agent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 import org.slf4j.Logger;
 
@@ -71,7 +72,7 @@ public class PersistentSshTunnel implements AbstractTunnel {
 				log.info ("Opening remote shell");
 			connection = new SshConnection(host, user, keyFile, password);
 			notifier = new Object ();
-			inputThread = new ConsumeInputThread (connection.getInputStream(), this.prompt, notifier);
+			inputThread = new ConsumeInputThread (connection.getInputStream(), this.prompt, notifier, Charset.defaultCharset().name());
 			if (debug)
 			{
 				inputThread.setDebug(true);
