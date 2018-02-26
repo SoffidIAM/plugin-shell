@@ -158,7 +158,13 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		try {
 			File out = new File(xmlOutFile);
 			out.delete();
-			ExitOnPromptInputStream in = shellTunnel.execute( parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \""+prompt+"\";\r\n");
+			ExitOnPromptInputStream in;
+			try {
+				in = shellTunnel.execute( parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \""+prompt+"\";\r\n");
+			} catch (IOException e) {
+				shellTunnel.closeShell();
+				throw e;
+			}
 			// Consume input
 			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			for (int i  = in.read(); i >= 0; i = in.read())
