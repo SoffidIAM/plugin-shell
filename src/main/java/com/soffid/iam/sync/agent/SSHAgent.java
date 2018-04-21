@@ -14,7 +14,12 @@ import com.jcraft.jsch.JSchException;
 
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
+import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
+import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
+import es.caib.seycon.ng.sync.intf.RoleMgr;
+import es.caib.seycon.ng.sync.intf.UserMgr;
 
 /**
  * Agent to manage relational databases
@@ -31,7 +36,8 @@ import es.caib.seycon.ng.sync.intf.ExtensibleObject;
  * <P>
  */
 
-public class SSHAgent extends AbstractShellAgent 
+public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMgr, UserMgr, ReconcileMgr2, RoleMgr,
+	AuthoritativeIdentitySource
 {
 	String user;
 	Password password;
@@ -91,7 +97,10 @@ public class SSHAgent extends AbstractShellAgent
 				buffer.write(i);
 			}
 			if (tunnel.getExitStatus() != 0)
-				throw new InternalErrorException("SSH command returned "+tunnel.getExitStatus());
+			{
+				throw new InternalErrorException("SSH command returned "+tunnel.getExitStatus()+"\n"+
+						buffer.toString(charSet));
+			}
 			return buffer.toString(charSet);
 		} catch (IOException e) {
 			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
