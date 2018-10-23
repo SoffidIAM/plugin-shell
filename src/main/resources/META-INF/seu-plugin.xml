@@ -15,40 +15,60 @@
 		<enableAttributeMapping>true</enableAttributeMapping>
 		<enableObjectTriggers>true</enableObjectTriggers>
 
-		<object systemObject="USERS" soffidObject="user">
-			<property name="selectAll" value="cat /etc/passwd"/>
-			<property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
-			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
-			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
-			<property name="check" value="fgrep $user /etc/passwd"/>
-			<property name="checkParse" value="([^:]*):[^\n]*\n"/>
-			<property name="insert" value="useradd $user"/>
-			<property name="update" value="usermod $user"/>
-			<property name="delete" value="userdel $user"/>
-			<property name="updatePassword" value="-"/>
-			<property name="validatePassword" value="-"/>
-			<mapping soffidAttribute='accountName' systemAttribute='user'
-				direction="out" />
-			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
-				direction="in" />
-		</object>
-		<object systemObject="ACCOUNTS" soffidObject="account">
-			<property name="selectAll" value="cat /etc/passwd"/>
-			<property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
-			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
-			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
-			<property name="check" value="fgrep $user /etc/passwd"/>
-			<property name="checkParse" value="([^:]*):[^\n]*\n"/>
-			<property name="insert" value="useradd $user"/>
-			<property name="update" value="usermod $user"/>
-			<property name="delete" value="userdel $user"/>
-			<property name="updatePassword" value="-"/>
-			<property name="validatePassword" value="-"/>
-			<mapping soffidAttribute='accountName' systemAttribute='user'
-				direction="out" />
-			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
-				direction="in" />
-		</object>
+		  <object soffidObject="account" systemObject="ACCOUNTS">
+		    <property name="check" value="fgrep $user /etc/passwd  || true"/>
+		    <property name="checkParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="delete" value="/usr/sbin/userdel $user"/>
+		    <property name="insert" value="/usr/sbin/useradd -c '$comments' $user"/>
+		    <property name="selectAll" value="cat /etc/passwd"/>
+		    <property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+		    <property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
+		    <mapping direction="in" soffidAttribute="accountName" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="accountName" systemAttribute="user"/>
+		    <mapping direction="out" soffidAttribute="accountDescription" systemAttribute="comments"/>
+		  </object>
+		  <object soffidObject="role" systemObject="GROUPS">
+		    <property name="check" value="fgrep $group /etc/group  || true"/>
+		    <property name="checkParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectAll" value="cat /etc/group"/>
+		    <property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectByName" value="fgrep $group /etc/group"/>
+		    <property name="selectByNameParse" value="([^:]*):[^\n]*\n"/>
+		    <mapping direction="out" soffidAttribute="name" systemAttribute="group"/>
+		    <mapping direction="in" soffidAttribute="name" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="in" soffidAttribute="application" systemAttribute="&quot;soffid&quot;"/>
+		  </object>
+		  <object soffidObject="user" systemObject="USERS">
+		    <property name="check" value="grep &quot;^$user:&quot; /etc/passwd || true"/>
+		    <property name="checkParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="delete" value="/usr/sbin/userdel $user"/>
+		    <property name="insert" value="/usr/sbin/useradd -c &quot;$comments&quot; $user"/>
+		    <property name="selectAll" value="cat /etc/passwd"/>
+		    <property name="selectAllParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+		    <property name="selectByAccountNameParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="update" value="/usr/sbin/usermod -c &quot;$comments&quot;  $user"/>
+		    <property name="update2" value="/bin/bash -c 'mkdir -p /home/$user/.ssh; echo &quot;$key&quot; &gt; /home/$user/.ssh/authorized_keys; chown -R $user /home/$user/.ssh; chmod -R 700 /home/$user/.ssh'"/>
+		    <property name="updatePassword" value="echo &quot;$user:$password&quot; | sudo chpasswd $user"/>
+		    <property name="validatePassword" value="-"/>
+		    <mapping direction="out" soffidAttribute="accountName" systemAttribute="user"/>
+		    <mapping direction="in" soffidAttribute="accountName" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="accountDescription" systemAttribute="comments"/>
+		    <mapping direction="out" soffidAttribute="password" systemAttribute="password"/>
+		    <mapping direction="out" soffidAttribute="attributes{&quot;sshKey&quot;}" systemAttribute="key"/>
+		  </object>
+		  <object soffidObject="allGrantedRoles" systemObject="GRANTS">
+		    <property name="check" value="groups $user"/>
+		    <property name="checkParse" value=".*"/>
+		    <property name="delete" value="deluser $user $group || true"/>
+		    <property name="insert" value="usermod -a -G $group $user"/>
+		    <property name="selectByAccount" value="groups $user"/>
+		    <property name="selectByAccountParse" value=" ([^\s:]\S*)"/>
+		    <mapping direction="out" soffidAttribute="ownerAccount" systemAttribute="user"/>
+		    <mapping direction="in" soffidAttribute="grantedRole" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="grantedRole" systemAttribute="group"/>
+		  </object>
 	</agent>
 	<agent>
 		<name>Shell Agent</name>
@@ -60,22 +80,60 @@
 		<enableAttributeMapping>true</enableAttributeMapping>
 		<enableObjectTriggers>true</enableObjectTriggers>
 
-		<object systemObject="USERS" soffidObject="user">
-			<property name="selectAll" value="cat /etc/passwd"/>
-			<property name="selectAllParse" value="([^:]*):[^\n]*"/>
-			<property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
-			<property name="selectByAccountNameParse" value="([^:]*):[^\n]*"/>
-			<property name="check" value="fgrep $user /etc/passwd"/>
-			<property name="insert" value="useradd $user"/>
-			<property name="update" value="usermod $user"/>
-			<property name="delete" value="userdel $user"/>
-			<property name="updatePassword" value="-"/>
-			<property name="validatePassword" value="-"/>
-			<mapping soffidAttribute='accountName' systemAttribute='user'
-				direction="out" />
-			<mapping soffidAttribute='accountName' systemAttribute='this{"1"}'
-				direction="in" />
-		</object>
+		  <object soffidObject="account" systemObject="ACCOUNTS">
+		    <property name="check" value="fgrep $user /etc/passwd "/>
+		    <property name="checkParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="delete" value="/usr/sbin/userdel $user"/>
+		    <property name="insert" value="/usr/sbin/useradd -c '$comments' $user"/>
+		    <property name="selectAll" value="cat /etc/passwd"/>
+		    <property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+		    <property name="selectByAccountNameParse" value="([^:]*):[^\n]*\n"/>
+		    <mapping direction="in" soffidAttribute="accountName" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="accountName" systemAttribute="user"/>
+		    <mapping direction="out" soffidAttribute="accountDescription" systemAttribute="comments"/>
+		  </object>
+		  <object soffidObject="role" systemObject="GROUPS">
+		    <property name="check" value="fgrep $group /etc/group"/>
+		    <property name="checkParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectAll" value="cat /etc/group"/>
+		    <property name="selectAllParse" value="([^:]*):[^\n]*\n"/>
+		    <property name="selectByName" value="fgrep $group /etc/group"/>
+		    <property name="selectByNameParse" value="([^:]*):[^\n]*\n"/>
+		    <mapping direction="out" soffidAttribute="name" systemAttribute="group"/>
+		    <mapping direction="in" soffidAttribute="name" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="in" soffidAttribute="application" systemAttribute="&quot;soffid&quot;"/>
+		  </object>
+		  <object soffidObject="user" systemObject="USERS">
+		    <property name="check" value="grep &quot;^$user:&quot; /etc/passwd"/>
+		    <property name="checkParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="delete" value="/usr/sbin/userdel $user"/>
+		    <property name="insert" value="/usr/sbin/useradd -c &quot;$comments&quot; $user"/>
+		    <property name="selectAll" value="cat /etc/passwd"/>
+		    <property name="selectAllParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="selectByAccountName" value="fgrep $user /etc/passwd"/>
+		    <property name="selectByAccountNameParse" value=".([^:]*):[^\n]*\n"/>
+		    <property name="update" value="/usr/sbin/usermod -c &quot;$comments&quot;  $user"/>
+		    <property name="update2" value="/bin/bash -c 'mkdir -p /home/$user/.ssh; echo &quot;$key&quot; &gt; /home/$user/.ssh/authorized_keys; chown -R $user /home/$user/.ssh; chmod -R 700 /home/$user/.ssh'"/>
+		    <property name="updatePassword" value="echo &quot;$user:$password&quot; | sudo chpasswd $user"/>
+		    <property name="validatePassword" value="-"/>
+		    <mapping direction="out" soffidAttribute="accountName" systemAttribute="user"/>
+		    <mapping direction="in" soffidAttribute="accountName" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="accountDescription" systemAttribute="comments"/>
+		    <mapping direction="out" soffidAttribute="password" systemAttribute="password"/>
+		    <mapping direction="out" soffidAttribute="attributes{&quot;sshKey&quot;}" systemAttribute="key"/>
+		  </object>
+		  <object soffidObject="allGrantedRoles" systemObject="GRANTS">
+		    <property name="check" value="groups $user"/>
+		    <property name="checkParse" value=".*"/>
+		    <property name="delete" value="deluser $user $grou"/>
+		    <property name="insert" value="usermod -a -G $group $user"/>
+		    <property name="selectByAccount" value="groups $user"/>
+		    <property name="selectByAccountParse" value=" ([^\s:]\S*)"/>
+		    <mapping direction="out" soffidAttribute="ownerAccount" systemAttribute="user"/>
+		    <mapping direction="in" soffidAttribute="grantedRole" systemAttribute="this{&quot;1&quot;}"/>
+		    <mapping direction="out" soffidAttribute="grantedRole" systemAttribute="group"/>
+		  </object>
 	</agent>
 	<agent>
 		<name>Power Shell Agent</name>

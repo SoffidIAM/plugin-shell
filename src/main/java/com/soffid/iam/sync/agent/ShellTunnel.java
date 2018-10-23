@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.agent;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Iterator;
@@ -64,7 +65,10 @@ public class ShellTunnel implements AbstractTunnel {
 		
 		if (shell == null || shell.trim().length() == 0)
 		{
-			process  = Runtime.getRuntime().exec(cmd);
+			
+			process  = File.separatorChar == '\\' ? 
+					Runtime.getRuntime().exec(cmd) :
+						Runtime.getRuntime().exec(split(cmd)) ;
 			if (debug)
 				log.info ("Executing process: "+cmd);
 			process.getOutputStream().close();
@@ -119,6 +123,72 @@ public class ShellTunnel implements AbstractTunnel {
 			idleTimeout = null;
 		}
 		return new ExitOnPromptInputStream (inputThread, errorThread, notifier, this, persistent, debug, log);
+	}
+
+	private String[] split(String cmd) {
+		StringBuffer sb = new StringBuffer ();
+		List<String> cmds = new LinkedList<String>();
+		boolean openQuote = false;
+		boolean openTilde = false;
+		boolean openEscape = false;
+		boolean empty = true;
+		for (char ch: cmd.toCharArray())
+		{
+			if (openEscape)
+			{
+				sb.append(ch);
+				openEscape = false;
+			}
+			else if (openTilde)
+			{
+				if (ch == '\'')
+					openTilde = false;
+				else
+					sb.append(ch);
+			}
+			else if (openQuote)
+			{
+				if (ch == '\"')
+					openQuote = false;
+				else if (ch == '\\')
+					openEscape = true;
+				else
+					sb.append(ch);
+			}
+			else switch ( ch)
+			{
+			case '\'':
+				openTilde = true;
+				empty = false;
+				break;
+			case '\"':
+				openQuote = true;
+				empty = false;
+				break;				
+			case '\\':
+				openEscape = true;
+				break;
+			case ' ':
+				if (! empty || sb.length() > 0)
+				{
+					cmds.add (sb.toString());
+				}
+				sb = new StringBuffer();
+				empty = true;
+				break;
+			default:
+				sb.append(ch);
+			}
+		}
+		if (! empty || sb.length() > 0)
+		{
+			cmds.add (sb.toString());
+		}
+		for (String s: cmds)
+		{
+			log.info(">> "+s);
+		}
+		return cmds.toArray(new String[cmds.size()]);
 	}
 
 	private void startTimeoutThread() {
