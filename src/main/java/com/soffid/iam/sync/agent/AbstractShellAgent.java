@@ -1273,7 +1273,7 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public boolean supportsRename ()
 	{
-		return true;
+		return false;
 	}
 
 }
