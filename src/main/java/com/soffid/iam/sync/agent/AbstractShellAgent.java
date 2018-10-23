@@ -1001,17 +1001,32 @@ public abstract class AbstractShellAgent extends Agent {
 									.generateObject(soffidObject,
 											objectMapping);
 							debugObject("Role to grant: ", object, "");
-							updateObject(object, soffidObject);
+							if (preInsert(soffidObject, object))
+							{
+								insert(object, objectMapping.getProperties());
+								postInsert(soffidObject, object, object);
+							}
 						}
 					}
 					// Now remove unneeded grants
 					for (Iterator<ExtensibleObject> objectIterator = existingRoles
 							.iterator(); objectIterator.hasNext();) {
 						ExtensibleObject object = objectIterator.next();
-						debugObject("Role to revoke: ", object, "");
-						ExtensibleObject eo = new ExtensibleObject();
-						eo.setObjectType(objectMapping.getSoffidObject().getValue());
-						delete(object, objectMapping.getProperties(), eo);
+						ExtensibleObject src = objectTranslator.parseInputObject(object, objectMapping);
+						src.setAttribute("ownerAccount", accountName);
+						debugObject("Role to revoke: ", src, "");
+
+						ExtensibleObject target = objectTranslator.generateObject(src, objectMapping, false);
+						target.putAll(object);
+						
+						if (preDelete(src, target))
+						{
+							debugObject("Removing object", target, "");
+							for (String tag : getTags(objectMapping.getProperties(), "delete")) {
+								executeSentence(objectMapping.getProperties(), tag, target, null);
+							}
+							postDelete(src, target);
+						}
 					}
 				}
 			}
@@ -1073,10 +1088,7 @@ public abstract class AbstractShellAgent extends Agent {
 			Password password, boolean mustchange) throws RemoteException,
 			InternalErrorException {
 
-		Account acc = new Account();
-		acc.setName(accountName);
-		acc.setDescription(userData.getFullName());
-		acc.setDispatcher(getCodi());
+		Account acc = getServer().getAccountInfo(accountName, getCodi());
 		ExtensibleObject soffidObject = new UserExtensibleObject(acc, userData,
 				getServer());
 
@@ -1257,6 +1269,11 @@ public abstract class AbstractShellAgent extends Agent {
 	protected boolean postDelete(ExtensibleObject soffidObject,
 			ExtensibleObject currentEntry) throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.POST_DELETE, soffidObject,  null, currentEntry);
+	}
+
+	public boolean supportsRename ()
+	{
+		return true;
 	}
 
 }
