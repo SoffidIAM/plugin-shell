@@ -11,6 +11,7 @@ import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
+import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.UserMgr;
@@ -31,7 +32,7 @@ import es.caib.seycon.ng.sync.intf.UserMgr;
  */
 
 public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMgr, UserMgr, ReconcileMgr2, RoleMgr,
-	AuthoritativeIdentitySource
+	AuthoritativeIdentitySource, MailAliasMgr
 {
 	String user;
 	Password password;

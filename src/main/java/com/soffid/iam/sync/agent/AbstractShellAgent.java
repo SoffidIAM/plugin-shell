@@ -3,9 +3,11 @@ package com.soffid.iam.sync.agent;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -29,6 +31,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.LlistaCorreu;
 import es.caib.seycon.ng.comu.ObjectMappingTrigger;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Rol;
@@ -40,7 +43,9 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.sync.agent.Agent;
 import es.caib.seycon.ng.sync.engine.extobj.AccountExtensibleObject;
+import es.caib.seycon.ng.sync.engine.extobj.ExtensibleObjectFinder;
 import es.caib.seycon.ng.sync.engine.extobj.GrantExtensibleObject;
+import es.caib.seycon.ng.sync.engine.extobj.MailListExtensibleObject;
 import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
 import es.caib.seycon.ng.sync.engine.extobj.RoleExtensibleObject;
 import es.caib.seycon.ng.sync.engine.extobj.UserExtensibleObject;
@@ -371,7 +376,7 @@ public abstract class AbstractShellAgent extends Agent {
 			return true;
 	}
 
-	protected void parseSentence(String sentence, ExtensibleObject obj,
+	protected void parseSentence(String sentence, Map<String, Object> params,
 			StringBuffer parsedSentence) {
 		int position = 0;
 		// First, transforma sentence into a valid SQL API sentence
@@ -414,7 +419,7 @@ public abstract class AbstractShellAgent extends Agent {
 					}
 					param = sentence.substring(paramStart, paramEnd);
 				}
-				Object paramValue = obj.getAttribute(param);
+				Object paramValue = params.get(param);
 				parsedSentence.append(paramValue);
 				position = paramEnd;
 			}
@@ -426,6 +431,65 @@ public abstract class AbstractShellAgent extends Agent {
 		this.objectMappings = objects;
 		objectTranslator = new ObjectTranslator(getDispatcher(), getServer(),
 				objectMappings);
+		objectTranslator.setObjectFinder(new ExtensibleObjectFinder() {
+			
+			public ExtensibleObject find(ExtensibleObject pattern) throws Exception {
+				log.info("Searching for native object "+pattern.toString());
+				ExtensibleObject result = new ExtensibleObject();
+				for (ExtensibleObjectMapping objectMapping : objectMappings) {
+					if (objectMapping.getSystemObject().equals( pattern.getObjectType()))
+					{
+						if (exists (pattern, objectMapping.getProperties(), result))
+						{
+							return result;
+						}
+					}
+				}
+				return null;
+			}
+
+			public Collection<Map<String,Object>> invoke (String verb, String command, Map<String, Object> params) throws InternalErrorException
+			{
+				if (debugEnabled)
+				{
+					log.info ("Invoking: "+verb+" on "+command);
+				}
+
+				ExtensibleObject o = new ExtensibleObject();
+				if (params != null)
+				o.putAll(params);
+
+				List<Map<String, Object>> result = new LinkedList<Map<String,Object>>();
+
+				List<String> columnNames = new ArrayList<String>();
+				
+				String text;
+				try {
+					StringBuffer b = new StringBuffer();
+					parseSentence(command, params, b );
+					
+					String parsedSentence = b.toString().trim();
+					text = actualExecute( parsedSentence );
+				} catch (InternalErrorException e) {
+					throw new InternalErrorException ("Error executing "+command, e);
+				}
+				
+				List<String[]> r = new LinkedList<String[]>();
+				parseExecutionResult("", new HashMap(), text, columnNames, r);
+				for (String[] row: r)
+				{
+					HashMap<String, Object> object = new HashMap<String, Object>();
+					for (int i = 0 ; i < row.length; i++)
+					{
+						object.put(columnNames.get(i), row[i]);
+					}
+					result.add(object);
+				}
+
+				return result;
+			}
+
+		});
 
 	}
 
@@ -530,19 +594,16 @@ public abstract class AbstractShellAgent extends Agent {
 			}
 		}
 		// Next update role members
-
 		try {
 			updateRoleMembers(
-					role,
-					getServer().getRoleAccounts(role.getId(),
-							getDispatcher().getCodi()));
+					role,null);
 		} catch (UnknownRoleException e) {
 			throw new InternalErrorException("Error updating role", e);
 		}
 	}
 
 	private void updateRoleMembers(Rol role, Collection<Account> initialGrants)
-			throws InternalErrorException {
+			throws InternalErrorException, UnknownRoleException {
 		RolGrant grant = new RolGrant();
 		grant.setRolName(role.getNom());
 		grant.setDispatcher(role.getBaseDeDades());
@@ -571,6 +632,9 @@ public abstract class AbstractShellAgent extends Agent {
 					foundSelect = true;
 				}
 				if (foundSelect) {
+					if (initialGrants == null)
+						initialGrants = getServer().getRoleAccounts(role.getId(),
+										getDispatcher().getCodi());
 					// Now get roles to have
 					Collection<Account> grants = new LinkedList<Account>(
 							initialGrants);
@@ -672,7 +736,11 @@ public abstract class AbstractShellAgent extends Agent {
 		}
 		// Next remove role members
 		Collection<Account> emptyList = Collections.emptyList();
-		updateRoleMembers(role, emptyList);
+		try {
+			updateRoleMembers(role, emptyList);
+		} catch (UnknownRoleException e) {
+			throw new InternalErrorException("Error removing role", e);
+		}
 	}
 
 	public List<String> getAccountsList() throws RemoteException,
@@ -1039,6 +1107,7 @@ public abstract class AbstractShellAgent extends Agent {
 		Account acc = getServer().getAccountInfo(accountName, getCodi());
 		ExtensibleObject soffidObject = new AccountExtensibleObject(acc,
 				getServer());
+
 		String password;
 		password = getAccountPassword(accountName);
 		soffidObject.put("password", password);
@@ -1086,12 +1155,12 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public void updateUserPassword(String accountName, Usuari userData,
 			Password password, boolean mustchange) throws RemoteException,
-			InternalErrorException {
-
+			InternalErrorException 
+	{
 		Account acc = getServer().getAccountInfo(accountName, getCodi());
 		ExtensibleObject soffidObject = new UserExtensibleObject(acc, userData,
 				getServer());
-
+		
 		soffidObject.put("password", getHashPassword(password));
 		soffidObject.put("mustChangePassword", mustchange);
 
@@ -1276,4 +1345,94 @@ public abstract class AbstractShellAgent extends Agent {
 		return false;
 	}
 
+
+	public void removeListAlias(String nomLlista, String domini) throws InternalErrorException {
+	}
+
+	public void removeUserAlias(String userKey) throws InternalErrorException {
+	}
+
+	public void updateListAlias(LlistaCorreu llista) throws InternalErrorException {
+		ExtensibleObject soffidObject = new MailListExtensibleObject(llista, getServer());
+
+		// First update role
+		for (ExtensibleObjectMapping objectMapping : objectMappings) {
+			if (objectMapping.getSoffidObject().equals(
+					SoffidObjectType.OBJECT_MAIL_LIST)) {
+				ExtensibleObject systemObject = objectTranslator
+						.generateObject(soffidObject, objectMapping);
+				updateObject(systemObject, soffidObject);
+			}
+		}
+	}
+
+	public void updateUserAlias(String useKey, Usuari user) throws InternalErrorException {
+	}
+
+	public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2)
+			throws RemoteException, InternalErrorException {
+		try {
+			ExtensibleObject sourceObject = getExtensibleObject(type, object1, object2);
+			for (ExtensibleObjectMapping map : objectMappings) {
+				if (map.appliesToSoffidObject(sourceObject))
+				{
+					ExtensibleObject translatedSample = objectTranslator.generateObject(sourceObject, map);
+					for (String tag: map.getProperties().keySet()) 
+					{
+						if (tag.startsWith("check"))
+						{
+							ExtensibleObject obj = new ExtensibleObject();
+							obj.setObjectType(map.getSystemObject());
+							if (exists ( translatedSample, map.getProperties(), obj ))
+							{
+								debugObject("Got system object", obj, "");
+								return obj;
+							}
+						}
+					}
+				}
+			}
+			return null;
+		} catch (Exception e) {
+			throw new InternalErrorException("Error searching for LDAP object", e);
+		}
+	}
+
+	public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2)
+			throws RemoteException, InternalErrorException {
+		try {
+			ExtensibleObject sourceObject = getExtensibleObject(type, object1, object2);
+			for (ExtensibleObjectMapping map : objectMappings) {
+				if (map.appliesToSoffidObject(sourceObject))
+				{
+					ExtensibleObject translatedSample = objectTranslator.generateObject(sourceObject, map);
+					for (String tag: map.getProperties().keySet()) 
+					{
+						if (tag.startsWith("select") && ! tag.startsWith("selectAll"))
+						{
+							ExtensibleObject obj = new ExtensibleObject();
+							obj.setObjectType(map.getSystemObject());
+							if (exists ( translatedSample, map.getProperties(), obj ))
+							{
+								debugObject("Got system object", obj, "");
+								ExtensibleObject soffidObj = objectTranslator.parseInputObject(obj, map);
+								debugObject("Translated soffid object", soffidObj, "");
+							
+								return soffidObj;
+							}
+						}
+					}
+				}
+			}
+			return null;
+		} catch (Exception e) {
+			throw new InternalErrorException("Error searching for LDAP object", e);
+		}
+	}
+
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+			Map<String, Object> params) throws RemoteException, InternalErrorException 
+	{
+		return objectTranslator.getObjectFinder().invoke(verb, command, params);
+	}
 }

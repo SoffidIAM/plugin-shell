@@ -28,10 +28,13 @@ import org.xml.sax.SAXException;
 
 import com.soffid.iam.sync.agent.shell.ExitOnPromptInputStream;
 
+import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
+import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
+import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.UserMgr;
@@ -51,7 +54,7 @@ import es.caib.seycon.ng.sync.intf.UserMgr;
  * <P>
  */
 
-public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObjectMgr, UserMgr, ReconcileMgr2, RoleMgr,
+public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObjectMgr, UserMgr, ReconcileMgr2, RoleMgr, MailAliasMgr,
 	AuthoritativeIdentitySource {
 
 	String shell;
@@ -91,12 +94,8 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		prompt = "----soffid----prompt-"+hashCode()+"----";
 		
 		log.info("Prompt: "+prompt);
-		hashType = getDispatcher().getParam3();
-		passwordPrefix = getDispatcher().getParam4();
-		
-		if (passwordPrefix == null)
-			hashType = "{" + hashType + "}";
-		
+		hashType = null;
+		passwordPrefix = null;
 		
 		debugEnabled = "true".equals(getDispatcher().getParam5());
 
@@ -143,7 +142,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	
 	@Override
 	protected String actualExecute(String parsedSentence) throws InternalErrorException {
-		
+		boolean started = false;
 		if (debugEnabled)
 		{ 
 			log.info("Executing "+parsedSentence);
@@ -153,6 +152,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		{
 			shellTunnel = null;
 			initTunnel();
+			started = true;
 		}
 		
 		try {
@@ -163,6 +163,15 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				in = shellTunnel.execute( parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \""+prompt+"\";\r\n");
 			} catch (IOException e) {
 				shellTunnel.closeShell();
+				if (started)
+				{
+					log.warn("Tunnel is not working. Restarting", e);
+					try {
+						Thread.currentThread().sleep(1000);
+					} catch (InterruptedException e1) {
+					}
+					System.exit(3);
+				}
 				throw e;
 			}
 			// Consume input

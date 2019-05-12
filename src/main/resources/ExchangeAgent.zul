@@ -8,6 +8,13 @@
 	<columns visible="false"><column width="14%"/><column/> </columns>
 	<rows>
 		<row>
+			<input_etiqueta value="Remote host" />
+			<hbox width="90%">
+				<input_dada bind="@param2" lectura="${!canModifyAgent}"
+					width_custom="98%" />
+			</hbox>
+		</row>
+		<row>
 			<input_etiqueta value="User name" />
 			<hbox width="90%">
 				<input_dada bind="@param8" lectura="${!canModifyAgent}"
@@ -25,6 +32,13 @@
 			<input_etiqueta value="Exchange server PS script (RemoteExchange.ps1 / exshell.psc1)" />
 			<hbox width="90%">
 				<input_dada bind="@param7" lectura="${!canModifyAgent}"
+					width_custom="98%" />
+			</hbox>
+		</row>
+		<row>
+			<input_etiqueta value="Startup script" />
+			<hbox width="90%">
+				<input_dada bind="@param6" lectura="${!canModifyAgent}"
 					width_custom="98%" />
 			</hbox>
 		</row>

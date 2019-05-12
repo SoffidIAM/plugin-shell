@@ -2,13 +2,17 @@ package com.soffid.iam.sync.agent.test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.LoggerFactory;
 
+import com.jcraft.jsch.JSchException;
 import com.soffid.iam.sync.agent.ShellTunnel;
+import com.soffid.iam.sync.agent.SshConnection;
 
+import es.caib.seycon.ng.comu.Password;
 import junit.framework.TestCase;
 
 public class ShellTest extends TestCase {
@@ -64,4 +68,33 @@ public class ShellTest extends TestCase {
 		System.out.println("END2");
 	}
 	
+	void dumpThreads ()
+	{
+		System.out.println("THREADS");
+		System.out.println("------------------------------");
+		Map<Thread, StackTraceElement[]> st = Thread.getAllStackTraces();
+		for (Thread t: st.keySet())
+		{
+			StackTraceElement[] te = st.get(t);
+			System.out.println(t.toString());
+			if (te.length > 0)
+				System.out.println("  >> "+te[0].toString());
+		}
+	}
+	
+	public void test2 () throws IOException, JSchException, InterruptedException 
+	{
+		Password p = null;
+		// p = new Password("");
+		if (p != null)
+		{
+			dumpThreads();
+			SshConnection t = new SshConnection("forge.dev.lab", "bbuades", "/home/gbuades/.ssh/id_dsa", p, "pwd");
+			Thread.sleep(1000);
+			dumpThreads();
+			t.close();
+			Thread.sleep(1000);
+			dumpThreads();
+		}
+	}
 }

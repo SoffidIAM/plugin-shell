@@ -49,6 +49,8 @@ public class PersistentSshTunnel implements AbstractTunnel {
 		if (connection != null)
 			connection.close();
 		connection = null;
+		if (inputThread != null)
+			inputThread.finish();
 		
 	}
 
@@ -91,7 +93,6 @@ public class PersistentSshTunnel implements AbstractTunnel {
 
 	public void closeShell() {
 		inputThread.finish();
-		connection = null;
 	}
 
 	public void setLog(Logger log) {

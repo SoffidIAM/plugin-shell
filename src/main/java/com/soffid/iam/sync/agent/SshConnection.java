@@ -4,9 +4,16 @@ import com.jcraft.jsch.*;
 
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.util.Base64;
 
 import java.io.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
+import org.bouncycastle.util.encoders.Base64Encoder;
 import org.slf4j.Logger;
 
 public class SshConnection {
@@ -28,6 +35,61 @@ public class SshConnection {
 
 	private Logger log;
 
+	static HostKeyRepository hkrepo = new HostKeyRepository() {
+		List<HostKey> keys =  new LinkedList<HostKey>();
+		public void remove(String host, String type, byte[] key) {
+			for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
+			{
+				HostKey h = iterator.next();
+				if (h.getHost().equals(host))
+					iterator.remove();
+			}
+		}
+		
+		public void remove(String host, String type) {
+			for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
+			{
+				HostKey h = iterator.next();
+				if (h.getHost().equals(host) && type.equals(h.getType()))
+					iterator.remove();
+			}
+		}
+		
+		public String getKnownHostsRepositoryID() {
+			return "soffid";
+		}
+		
+		public HostKey[] getHostKey(String host, String type) {
+			List<HostKey> r = new LinkedList<HostKey>();
+			for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
+			{
+				HostKey h = iterator.next();
+				if (h.getHost().equals(host) && type.equals(h.getType()))
+					r.add(h);
+			}
+			return r.toArray(new HostKey[r.size()]);
+		}
+		
+		public HostKey[] getHostKey() {
+			return keys.toArray(new HostKey[keys.size()]);
+		}
+		
+		public int check(String host, byte[] key) {
+			String s = Base64.encodeBytes(key, Base64.DONT_BREAK_LINES);
+			for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
+			{
+				HostKey h = iterator.next();
+				if (h.getHost().equals(host) && s.equals(h.getKey()))
+					return OK;
+			}
+			return NOT_INCLUDED;
+		}
+		
+		public void add(HostKey hostkey, UserInfo ui) {
+			keys.add(hostkey);
+		}
+	};
+
 	private void init () throws IOException, JSchException
 	{
 		jsch = new JSch();
@@ -37,10 +99,14 @@ public class SshConnection {
 		String knownHosts = Config.getConfig().getHomeDir().getAbsolutePath()+File.separator+"conf"+File.separator+"known_hosts";
 		
 		File f = new File (knownHosts);
-		if (!f.canRead())
-			new FileOutputStream(f).close();
-		
-		jsch.setKnownHosts(knownHosts);
+		try {
+			if (!f.canRead())
+				new FileOutputStream(f).close();
+			
+			jsch.setKnownHosts(knownHosts);
+		} catch (Exception e) {
+			jsch.setHostKeyRepository(hkrepo);
+		}
 		session = jsch.getSession(user, host, 22);
 
 		// username and password will be given via UserInfo interface.
