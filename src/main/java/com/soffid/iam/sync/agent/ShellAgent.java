@@ -21,7 +21,7 @@ import es.caib.seycon.ng.sync.intf.UserMgr;
  * 
  * 0 User name
  * 1 Password
- * 2 JDBC URL
+ * 2 JDBC UR
  * 3 Password hash alogithm
  * 4 Password hash prefix
  * 5 Debug

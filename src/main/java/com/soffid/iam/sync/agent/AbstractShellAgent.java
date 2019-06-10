@@ -163,6 +163,27 @@ public abstract class AbstractShellAgent extends Agent {
 		}
 	}
 
+	private void renameObject(ExtensibleObject obj, ExtensibleObject newObj, ExtensibleObject soffidObject)
+			throws InternalErrorException {
+		Map<String, String> properties = objectTranslator
+				.getObjectProperties(obj);
+		ExtensibleObject existingObject = new ExtensibleObject();
+		if (exists(obj, properties, existingObject)) {
+			if (preUpdate(soffidObject, newObj, existingObject))
+			{
+				rename(newObj, properties);
+				update(newObj, properties);
+				postUpdate(soffidObject, newObj, existingObject);
+			}
+		} else {
+			if (preInsert(soffidObject, newObj))
+			{
+				insert(obj, properties);
+				postInsert(soffidObject, newObj, newObj);
+			}
+		}
+	}
+
 	private void insert(ExtensibleObject obj, Map<String, String> properties)
 			throws InternalErrorException {
 		debugObject("Creating object", obj, "");
@@ -337,6 +358,14 @@ public abstract class AbstractShellAgent extends Agent {
 			throws InternalErrorException {
 		debugObject("Updating object", obj, "");
 		for (String tag : getTags(properties, "update")) {
+			executeSentence(properties, tag, obj, null);
+		}
+	}
+
+	private void rename(ExtensibleObject obj, Map<String, String> properties)
+			throws InternalErrorException {
+		debugObject("Renaming object", obj, "");
+		for (String tag : getTags(properties, "rename")) {
 			executeSentence(properties, tag, obj, null);
 		}
 	}
@@ -946,10 +975,7 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public void updateUser(String accountName, Usuari userData)
 			throws RemoteException, InternalErrorException {
-		Account acc = new Account();
-		acc.setName(accountName);
-		acc.setDescription(userData.getFullName());
-		acc.setDispatcher(getCodi());
+		Account acc = getServer().getAccountInfo(accountName, getCodi());
 		ExtensibleObject soffidObject = new UserExtensibleObject(acc, userData,
 				getServer());
 
@@ -960,9 +986,40 @@ public abstract class AbstractShellAgent extends Agent {
 		for (ExtensibleObjectMapping objectMapping : objectMappings) {
 			if (objectMapping.getSoffidObject().equals(
 					SoffidObjectType.OBJECT_USER)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject, soffidObject);
+				if ( acc.getOldName() != null)
+				{
+					if ( ! getTags(objectMapping.getProperties(), "rename").isEmpty())
+					{
+						Account acc2 = new Account (acc);
+						acc2.setName(acc.getOldName());
+						ExtensibleObject systemObject = objectTranslator
+								.generateObject(soffidObject, objectMapping);
+						ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData,
+								getServer());
+						ExtensibleObject systemObject2 = objectTranslator
+								.generateObject(soffidObject2, objectMapping);
+						renameObject(systemObject2, systemObject, soffidObject);						
+					}
+					else
+					{
+						Account acc2 = new Account (acc);
+						acc2.setName(acc.getOldName());
+						ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData,
+								getServer());
+						ExtensibleObject systemObject2 = objectTranslator
+								.generateObject(soffidObject2, objectMapping);
+						delete(systemObject2, objectMapping.getProperties(), soffidObject);
+						ExtensibleObject systemObject = objectTranslator
+								.generateObject(soffidObject, objectMapping);
+						updateObject(systemObject, soffidObject);
+					}
+				}
+				else
+				{
+					ExtensibleObject systemObject = objectTranslator
+							.generateObject(soffidObject, objectMapping);
+					updateObject(systemObject, soffidObject);
+				}
 			}
 		}
 		// Next update role members
@@ -1120,9 +1177,40 @@ public abstract class AbstractShellAgent extends Agent {
 		for (ExtensibleObjectMapping objectMapping : objectMappings) {
 			if (objectMapping.getSoffidObject().equals(
 					SoffidObjectType.OBJECT_ACCOUNT)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject, soffidObject);
+				if ( acc.getOldName() != null)
+				{
+					if ( ! getTags(objectMapping.getProperties(), "rename").isEmpty())
+					{
+						Account acc2 = new Account (acc);
+						acc2.setName(acc.getOldName());
+						ExtensibleObject systemObject = objectTranslator
+								.generateObject(soffidObject, objectMapping);
+						ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2, 
+								getServer());
+						ExtensibleObject systemObject2 = objectTranslator
+								.generateObject(soffidObject2, objectMapping);
+						renameObject(systemObject2, systemObject, soffidObject);						
+					}
+					else
+					{
+						Account acc2 = new Account (acc);
+						acc2.setName(acc.getOldName());
+						ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2,
+								getServer());
+						ExtensibleObject systemObject2 = objectTranslator
+								.generateObject(soffidObject2, objectMapping);
+						delete(systemObject2, objectMapping.getProperties(), soffidObject);
+						ExtensibleObject systemObject = objectTranslator
+								.generateObject(soffidObject, objectMapping);
+						updateObject(systemObject, soffidObject);
+					}
+				}
+				else
+				{
+					ExtensibleObject systemObject = objectTranslator
+							.generateObject(soffidObject, objectMapping);
+					updateObject(systemObject, soffidObject);
+				}
 			}
 		}
 		// Next update role members
@@ -1340,12 +1428,6 @@ public abstract class AbstractShellAgent extends Agent {
 		return runTrigger(SoffidObjectTrigger.POST_DELETE, soffidObject,  null, currentEntry);
 	}
 
-	public boolean supportsRename ()
-	{
-		return false;
-	}
-
-
 	public void removeListAlias(String nomLlista, String domini) throws InternalErrorException {
 	}
 
@@ -1435,4 +1517,9 @@ public abstract class AbstractShellAgent extends Agent {
 	{
 		return objectTranslator.getObjectFinder().invoke(verb, command, params);
 	}
+
+	public boolean supportsRename () {
+		return true;
+	}
+
 }

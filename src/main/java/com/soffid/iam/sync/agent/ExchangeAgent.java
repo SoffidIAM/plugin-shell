@@ -80,7 +80,7 @@ public class ExchangeAgent extends PowerShellAgent {
 		shellTunnel.setLog (log);
 		shellTunnel.setEncoding("CP850");
 		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
-		String loadScript = exchangeDir != null ? ". '"+exchangeDir+"';" : "";
+		String loadScript = exchangeDir != null  && !exchangeDir.trim().isEmpty() ? ". '"+exchangeDir+"';" : "";
 		try {
 			InputStream in ;
 			
@@ -135,7 +135,4 @@ public class ExchangeAgent extends PowerShellAgent {
 		}
 	}
 
-	public boolean supportsRename () {
-		return true;
-	}
 }
