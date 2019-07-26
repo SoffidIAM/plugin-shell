@@ -55,6 +55,7 @@ public class ShellTunnel implements AbstractTunnel {
 	private long timeout;
 	private String exitCommand;
 	private String encoding;
+	private String restartWord;
 	
 	public ExitOnPromptInputStream execute (String cmd) throws IOException
 	{
@@ -273,7 +274,16 @@ public class ShellTunnel implements AbstractTunnel {
 		{
 			if (debug)
 			{
-				log.info("Auto closing tunnel");
+				log.warn("Timeout detected");
+			}
+			if ( restartWord != null)
+			{
+				log.warn("Timeout detected. Restarting system.");
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+				}
+				System.exit(1);
 			}
 			closeShell();
 		}
@@ -290,4 +300,13 @@ public class ShellTunnel implements AbstractTunnel {
 		this.encoding = string;
 		
 	}
- }
+
+	public void setRestartWord(String word)
+	{
+		this.restartWord = word;
+		if (errorThread != null)
+			errorThread.setRestartWord(word);
+		if (inputThread != null)
+			inputThread.setRestartWord(word);
+	}
+}

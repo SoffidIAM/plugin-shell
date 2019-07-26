@@ -79,14 +79,14 @@ public class ExchangeAgent extends PowerShellAgent {
 		shellTunnel.setDebug(debugEnabled);
 		shellTunnel.setLog (log);
 		shellTunnel.setEncoding("CP850");
-		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
+		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell
+		shellTunnel.setRestartWord("watson");
 		String loadScript = exchangeDir != null  && !exchangeDir.trim().isEmpty() ? ". '"+exchangeDir+"';" : "";
 		try {
 			InputStream in ;
 			
 			if (pscFile != null)
 			{
-//				shellTunnel.execute(". '"+exchangeDir+"';");
 				if ("2010".equals(version))
 				{
 					File dir = new File(pscFile).getParentFile();

@@ -14,7 +14,9 @@ public class ConsumeErrorThread extends Thread
 	protected InputStream in;
 	protected byte[] line;
 	protected boolean finish;
-	
+	private String restartWord = null;
+
+
 	public boolean isClosed() {
 		return finish;
 	}
@@ -58,6 +60,15 @@ public class ConsumeErrorThread extends Thread
 
 	public synchronized void setLine(byte[] b) throws InterruptedException {
 		line = b;
+		if ( restartWord != null)
+		{
+			String s = new String(line);
+			if (s.toLowerCase().contains(restartWord.toLowerCase()))
+			{
+				log.warn("Found forbidden word ["+restartWord+"] in response text "+s);
+				restart();
+			}
+		}
 		synchronized (notifier)
 		{
 			notifier.notify();
@@ -67,6 +78,18 @@ public class ConsumeErrorThread extends Thread
 		}
 	}
 	
+	public void restart() {
+		new Thread(new Runnable() {
+			public void run() {
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {}
+				System.exit(1);
+			}
+			
+		}).start();
+	}
+
 	protected void closed ()
 	{
 		finish = true;
@@ -110,5 +133,14 @@ public class ConsumeErrorThread extends Thread
 
 	public void setLog(Logger log) {
 		this.log = log;
+	}
+
+
+	public String getRestartWord() {
+		return restartWord;
+	}
+
+	public void setRestartWord(String restartWord) {
+		this.restartWord = restartWord;
 	}
 }

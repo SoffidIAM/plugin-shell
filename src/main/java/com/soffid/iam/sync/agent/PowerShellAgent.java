@@ -126,15 +126,30 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 					!initialCommand.trim().isEmpty())
 				shellTunnel.execute(initialCommand + "\n");
 			InputStream in = shellTunnel.execute("function prompt{\"\"};  echo \""+prompt+"\"\r\n");
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			int b;
 			while ((b = in.read()) >= 0) {
 				System.out.write (b);
+				out.write(b);
 			}
 		} catch (IOException e) {
 			System.exit(1);
 			throw new InternalErrorException ("Unable to open power shell");
 			
 		}
+	}
+
+	public void restart() {
+		log.info("Detected doctor watson error. Restarting");
+		new Thread(new Runnable() {
+			public void run() {
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {}
+				System.exit(1);
+			}
+			
+		}).start();
 	}
 
 

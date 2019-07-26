@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 public class ConsumeInputThread extends ConsumeErrorThread {
 	private Pattern pattern = null;
 	private boolean promptFound;
-
+	
 	public ConsumeInputThread(InputStream inputStream, String prompt, Object notifier, String encoding) {
 		super (inputStream, notifier, encoding);
 		if (prompt != null && prompt.length() > 0)
@@ -74,6 +74,7 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 			}
 			if (debug)
 				log.info ("OUTPUT-STREAM-CLOSED");
+
 		} catch (IOException e) {
 		} catch (InterruptedException e) {
 		}
