@@ -121,6 +121,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		shellTunnel.setLog (log);
 		shellTunnel.setEncoding("CP850");
 		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
+		shellTunnel.idle();
 		try {
 			if (initialCommand != null &&
 					!initialCommand.trim().isEmpty())
@@ -132,6 +133,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				System.out.write (b);
 				out.write(b);
 			}
+			shellTunnel.idle();
 		} catch (IOException e) {
 			System.exit(1);
 			throw new InternalErrorException ("Unable to open power shell");
@@ -140,7 +142,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	}
 
 	public void restart() {
-		log.info("Detected doctor watson error. Restarting");
+		log.info("Detected severe error. Restarting");
 		new Thread(new Runnable() {
 			public void run() {
 				try {
@@ -175,6 +177,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			out.delete();
 			ExitOnPromptInputStream in;
 			try {
+				shellTunnel.idle();
 				in = shellTunnel.execute( parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \""+prompt+"\";\r\n");
 			} catch (IOException e) {
 				shellTunnel.closeShell();
@@ -195,6 +198,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			{
 				buffer.write(i);
 			}
+			shellTunnel.idle();
 			
 			if ((out.length() == 0 && buffer.size() > 0 ) || !out.canRead() || in.hasError())
 			{

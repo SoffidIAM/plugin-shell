@@ -93,12 +93,14 @@ public class ShellAgent extends AbstractShellAgent implements ExtensibleObjectMg
 		
 		
 		try {
+			shellTunnel.idle();
 			InputStream in = shellTunnel.execute( parsedSentence);
 			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			for (int i  = in.read(); i >= 0; i = in.read())
 			{
 				buffer.write(i);
 			}
+			shellTunnel.idle();
 			return buffer.toString();
 		} catch (IOException e) {
 			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);

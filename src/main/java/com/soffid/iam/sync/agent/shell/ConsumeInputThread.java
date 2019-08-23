@@ -60,7 +60,7 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 							bout.reset();
 						}
 					} else if (debug) {
-						log.info (bout.toString(encoding)+"<WAITING...>");
+//						log.info (bout.toString(encoding)+"<WAITING...>");
 					}
 				} 
 				else if (in.available() == 0 && debug)

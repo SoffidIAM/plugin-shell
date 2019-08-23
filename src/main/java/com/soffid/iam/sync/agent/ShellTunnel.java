@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.logging.LogFactory;
 import org.slf4j.Logger;
 
 import com.soffid.iam.sync.agent.shell.AbstractTunnel;
@@ -121,7 +122,8 @@ public class ShellTunnel implements AbstractTunnel {
 			process.getOutputStream().flush();
 			if (!persistent)
 				process.getOutputStream().close();
-			idleTimeout = null;
+			idle();
+//			idleTimeout = null;
 		}
 		return new ExitOnPromptInputStream (inputThread, errorThread, notifier, this, persistent, debug, log);
 	}
@@ -199,6 +201,7 @@ public class ShellTunnel implements AbstractTunnel {
 				
 				public void run() {
 					try {
+						log.info("Timeout thread started");
 						while (true)
 						{
 							synchronized (tunnels) {
@@ -212,13 +215,14 @@ public class ShellTunnel implements AbstractTunnel {
 										st.checkTimeout();
 								}
 							}
-							Thread.sleep(1000);
+							Thread.sleep(60000);
 						}
 					} catch (InterruptedException e) {
 					}
 					
 				}
 			});
+			timeoutThread.start();
 		}
 		synchronized (tunnels)
 		{
@@ -248,6 +252,11 @@ public class ShellTunnel implements AbstractTunnel {
 			} catch (IOException e) {
 			}
 		}
+		try {
+			process.getOutputStream().close();
+		} catch (IOException e) {
+		}
+		process.destroy();
 		inputThread.finish();
 		errorThread.finish();
 		process = null;
@@ -274,16 +283,7 @@ public class ShellTunnel implements AbstractTunnel {
 		{
 			if (debug)
 			{
-				log.warn("Timeout detected");
-			}
-			if ( restartWord != null)
-			{
-				log.warn("Timeout detected. Restarting system.");
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-				}
-				System.exit(1);
+				LogFactory.getLog(getClass()).warn("Timeout detected for shell tunnel "+toString());
 			}
 			closeShell();
 		}

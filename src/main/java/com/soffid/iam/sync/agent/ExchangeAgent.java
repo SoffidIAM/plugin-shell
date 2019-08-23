@@ -11,6 +11,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Map;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
+
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -24,7 +26,7 @@ public class ExchangeAgent extends PowerShellAgent {
 	private String version;
 	private String startupScript;
 	private String hostName;
-
+	static int count = 0;
 	/**
 	 * Constructor
 	 * 
@@ -35,8 +37,11 @@ public class ExchangeAgent extends PowerShellAgent {
 
 	@Override
 	public void init() throws InternalErrorException {
-		log.info("Starting Power Shell Agent agent on {}", getDispatcher().getCodi(),
-				null);
+		count ++;
+//		if (count > 6)
+//			restart();
+		log.info("Starting Power Shell Agent agent on {}: {}", getDispatcher().getCodi(),
+				count);
 //		exchangeServer = getDispatcher().getParam6();
 		exchangeDir = getDispatcher().getParam7();
 		if (exchangeDir == null)
@@ -79,7 +84,7 @@ public class ExchangeAgent extends PowerShellAgent {
 		shellTunnel.setDebug(debugEnabled);
 		shellTunnel.setLog (log);
 		shellTunnel.setEncoding("CP850");
-		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell
+		shellTunnel.setTimeout( 30 * 60 * 1000); //30 mins max idle time for a power shell
 		shellTunnel.setRestartWord("watson");
 		String loadScript = exchangeDir != null  && !exchangeDir.trim().isEmpty() ? ". '"+exchangeDir+"';" : "";
 		try {
@@ -126,13 +131,26 @@ public class ExchangeAgent extends PowerShellAgent {
 			in = shellTunnel.execute(
 					"echo \""+prompt+"\"");
 			int b;
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			while ((b = in.read()) >= 0) {
+				out.write(b);
 //				System.out.write (b);
 			}
+			if (out.toString().contains("Windows PowerShell terminated"))
+			{
+				restart();
+			}
+			shellTunnel.idle();
 		} catch (IOException e) {
 			System.exit(1);
 			throw new InternalErrorException ("Unable to open power shell", e);
 		}
 	}
+	
+	public void close () {
+		shellTunnel.closeShell();
+		super.close();
+	}
+
 
 }
