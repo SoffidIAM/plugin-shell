@@ -1008,6 +1008,7 @@ public abstract class AbstractShellAgent extends Agent {
 								getServer());
 						ExtensibleObject systemObject2 = objectTranslator
 								.generateObject(soffidObject2, objectMapping);
+						if (debugEnabled) log.info(">>> updateUser: "+accountName+", userData: "+userData);
 						delete(systemObject2, objectMapping.getProperties(), soffidObject);
 						ExtensibleObject systemObject = objectTranslator
 								.generateObject(soffidObject, objectMapping);
@@ -1199,6 +1200,7 @@ public abstract class AbstractShellAgent extends Agent {
 								getServer());
 						ExtensibleObject systemObject2 = objectTranslator
 								.generateObject(soffidObject2, objectMapping);
+						if (debugEnabled) log.info(">>> updateUser: "+accountName+", description: "+description);
 						delete(systemObject2, objectMapping.getProperties(), soffidObject);
 						ExtensibleObject systemObject = objectTranslator
 								.generateObject(soffidObject, objectMapping);
@@ -1220,24 +1222,34 @@ public abstract class AbstractShellAgent extends Agent {
 				getServer().getAccountExplicitRoles(accountName, getCodi()));
 	}
 
-	public void removeUser(String accountName) throws RemoteException,
-			InternalErrorException {
-		Account acc = new Account();
-		acc.setName(accountName);
-		acc.setDescription(null);
-		acc.setDisabled(true);
-		acc.setDispatcher(getCodi());
-		ExtensibleObject soffidObject = new AccountExtensibleObject(acc,
-				getServer());
-
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ACCOUNT)) {
-				ExtensibleObject sqlobject = objectTranslator.generateObject(
-						soffidObject, objectMapping);
-				delete(sqlobject, objectMapping.getProperties(), soffidObject);
+	public void removeUser(String accountName) throws RemoteException, InternalErrorException {
+		if (debugEnabled) log.info(">>> removeUser: "+accountName);
+		Account a = getServer().getAccountInfo(accountName, getCodi());
+		if (a==null) {
+			// The account is removed
+			Account acc = new Account();
+			acc.setName(accountName);
+			acc.setDescription(null);
+			acc.setDisabled(true);
+			acc.setDispatcher(getCodi());
+			ExtensibleObject soffidObject = new AccountExtensibleObject(acc, getServer());
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+					ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
+					delete(sqlobject, objectMapping.getProperties(), soffidObject);
+				}
 			}
+		} else {
+			// The account is disabled
+			if (debugEnabled) log.info(">>> isDisabled: "+a.isDisabled());
+			if (debugEnabled) log.info(">>> status: "+a.getStatus());
+			Usuari user = null;
+			for (Usuari i : a.getOwnerUsers()) {
+				user = i;
+				break;
+			}
+			if (debugEnabled) log.info(">>> user: "+user);
+			updateUser(accountName, user);
 		}
 	}
 
