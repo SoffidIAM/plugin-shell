@@ -123,6 +123,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
 		shellTunnel.idle();
 		try {
+			log.info("Initializing shell");
 			if (initialCommand != null &&
 					!initialCommand.trim().isEmpty())
 				shellTunnel.execute(initialCommand + "\n");

@@ -3,6 +3,7 @@ package com.soffid.iam.sync.agent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -197,6 +198,7 @@ public class ShellTunnel implements AbstractTunnel {
 	private void startTimeoutThread() {
 		if (timeoutThread == null)
 		{
+			log.info("Creating timeout thread");
 			timeoutThread = new Thread ( new Runnable() {
 				
 				public void run() {
@@ -205,12 +207,16 @@ public class ShellTunnel implements AbstractTunnel {
 						while (true)
 						{
 							synchronized (tunnels) {
+								log.info("Cleaning unused threads");
 								for (Iterator<ShellTunnel> it = tunnels.iterator();
 										it.hasNext();)
 								{
 									ShellTunnel st = it.next();
 									if (st.isClosed())
+									{
+										log.info("Shell "+st.toString()+" is closed");
 										it.remove();
+									}
 									else
 										st.checkTimeout();
 								}
@@ -218,10 +224,15 @@ public class ShellTunnel implements AbstractTunnel {
 							Thread.sleep(60000);
 						}
 					} catch (InterruptedException e) {
+					} catch (Throwable e) {
+						log.info("Error processing timeout thread", e);
+					} finally {
+						log.info("Timeout thread is finished");
+						timeoutThread = null;
 					}
-					
 				}
 			});
+			timeoutThread.setName("Shell timeout detector");
 			timeoutThread.start();
 		}
 		synchronized (tunnels)
@@ -283,10 +294,14 @@ public class ShellTunnel implements AbstractTunnel {
 		{
 			if (debug)
 			{
-				LogFactory.getLog(getClass()).warn("Timeout detected for shell tunnel "+toString());
+				log.warn("Timeout detected for shell tunnel "+toString());
 			}
 			closeShell();
 		}
+		else if (idleTimeout == null)
+			log.info("Tunnel "+toString()+" has no timeout");
+		else
+			log.info("Tunnel "+toString()+" is still alive ["+new Date(idleTimeout)+" vs "+new Date()+"]");
 	}
 	
 	public void idle ()

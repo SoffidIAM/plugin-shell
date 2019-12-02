@@ -19,6 +19,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 
 public class ExchangeAgent extends PowerShellAgent {
 
+	private static final int TIMEOUT = 15;
 	private String exchangeDir;
 	private String user;
 	private Password password;
@@ -38,8 +39,8 @@ public class ExchangeAgent extends PowerShellAgent {
 	@Override
 	public void init() throws InternalErrorException {
 		count ++;
-//		if (count > 6)
-//			restart();
+		if (count > 50)
+			restart();
 		log.info("Starting Power Shell Agent agent on {}: {}", getDispatcher().getCodi(),
 				count);
 //		exchangeServer = getDispatcher().getParam6();
@@ -84,7 +85,7 @@ public class ExchangeAgent extends PowerShellAgent {
 		shellTunnel.setDebug(debugEnabled);
 		shellTunnel.setLog (log);
 		shellTunnel.setEncoding("CP850");
-		shellTunnel.setTimeout( 30 * 60 * 1000); //30 mins max idle time for a power shell
+		shellTunnel.setTimeout( TIMEOUT * 60 * 1000); //30 mins max idle time for a power shell
 		shellTunnel.setRestartWord("watson");
 		String loadScript = exchangeDir != null  && !exchangeDir.trim().isEmpty() ? ". '"+exchangeDir+"';" : "";
 		try {
