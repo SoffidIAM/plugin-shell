@@ -1527,6 +1527,8 @@ public abstract class AbstractShellAgent extends Agent {
 	public Collection<Map<String, Object>> invoke(String verb, String command,
 			Map<String, Object> params) throws RemoteException, InternalErrorException 
 	{
+		log.info("Invoking "+command);
+		debugEnabled = true;
 		return objectTranslator.getObjectFinder().invoke(verb, command, params);
 	}
 

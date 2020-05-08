@@ -1,15 +1,11 @@
 package com.soffid.iam.sync.agent;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.Map;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
@@ -41,7 +37,7 @@ public class ExchangeAgent extends PowerShellAgent {
 		count ++;
 		if (count > 50)
 			restart();
-		log.info("Starting Power Shell Agent agent on {}: {}", getDispatcher().getCodi(),
+		log.info("Starting Exchange Agent agent on {}: {}", getDispatcher().getCodi(),
 				count);
 //		exchangeServer = getDispatcher().getParam6();
 		exchangeDir = getDispatcher().getParam7();
