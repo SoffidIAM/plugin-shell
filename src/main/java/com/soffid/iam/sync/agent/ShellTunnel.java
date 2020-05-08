@@ -208,14 +208,12 @@ public class ShellTunnel implements AbstractTunnel {
 						{
 							synchronized (tunnels) {
 								log.info("Cleaning unused threads");
-								for (Iterator<ShellTunnel> it = tunnels.iterator();
-										it.hasNext();)
+								for (ShellTunnel st: new LinkedList<ShellTunnel>(tunnels))
 								{
-									ShellTunnel st = it.next();
 									if (st.isClosed())
 									{
 										log.info("Shell "+st.toString()+" is closed");
-										it.remove();
+										tunnels.remove(st);
 									}
 									else
 										st.checkTimeout();
