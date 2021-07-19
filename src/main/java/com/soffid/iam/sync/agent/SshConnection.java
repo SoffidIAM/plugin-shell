@@ -35,6 +35,8 @@ public class SshConnection {
 
 	private Logger log;
 
+	private InputStream errorStream;
+
 	static HostKeyRepository hkrepo = new HostKeyRepository() {
 		List<HostKey> keys =  new LinkedList<HostKey>();
 		public void remove(String host, String type, byte[] key) {
@@ -92,6 +94,7 @@ public class SshConnection {
 
 	private void init () throws IOException, JSchException
 	{
+		JSch.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
 		jsch = new JSch();
 		if (keyFile != null && keyFile.trim().length() > 0)
 			jsch.addIdentity(keyFile);
@@ -112,18 +115,21 @@ public class SshConnection {
 		// username and password will be given via UserInfo interface.
 		UserInfo ui = new MyUserInfo();
 		session.setUserInfo(ui);
+		session.setTimeout(30000);  // 30 seconds timeout for connection
 		session.connect();
 
 		channel = session.openChannel(channelName);
 		if (cmdLine != null)
 			((ChannelExec) channel).setCommand(cmdLine);
+		
 
 		// get I/O streams for remote scp
 		outputStream = channel.getOutputStream();
 		inputStream = channel.getInputStream();
-
+		errorStream = channel.getExtInputStream();
 		channel.connect();
 
+		session.setTimeout(0); // No timeout after connection
 	}
 	
 	public void close ()
@@ -224,7 +230,7 @@ public class SshConnection {
 		return channel.isEOF();
 	}
 	
-	public int getExitStatus ()
+	public int getExitStatus () throws IOException
 	{
 		for (int i = 0; i < 600 && ! channel.isClosed(); i++)
 		{
@@ -233,6 +239,8 @@ public class SshConnection {
 			} catch (InterruptedException e) {
 			}
 		}
+		if (!channel.isClosed())
+			throw new IOException("Timeout. No response from server");
 		return channel.getExitStatus();
 	}
 
@@ -245,4 +253,25 @@ public class SshConnection {
 		this.log = log;
 	}
 
+	public InputStream getErrorStream() {
+		return errorStream;
+	}
+
+	public void exec(String cmdLine) throws JSchException, IOException {
+		if (channel != null)
+			channel.disconnect();
+		channel = session.openChannel("exec");
+		if (cmdLine != null)
+			((ChannelExec) channel).setCommand(cmdLine);
+
+		// get I/O streams for remote scp
+		outputStream = channel.getOutputStream();
+		inputStream = channel.getInputStream();
+		errorStream = channel.getExtInputStream();
+		channel.connect();
+	}
+
+	public boolean isConnected() {
+		return session.isConnected();
+	}
 }
