@@ -78,6 +78,7 @@ public class ShellAgent extends AbstractShellAgent implements ExtensibleObjectMg
 			throw new InternalErrorException(
 					"Unable to use SHA encryption algorithm ", e);
 		}
+		super.init();
 	}
 
 

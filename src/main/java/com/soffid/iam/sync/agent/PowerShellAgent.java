@@ -76,6 +76,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 
 	@Override
 	public void init() throws InternalErrorException {
+		super.init();
 		log.info("Starting Power Shell Agent agent on {}", getDispatcher().getCodi(),
 				null);
 		if (pscFile == null)
