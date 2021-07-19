@@ -37,7 +37,6 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 					if(debug)
 						log.info ("END-OF-OUTPUT-STREAM");
 					setLine(bout.toByteArray());
-					closed ();
 					return;
 				}
 				// Append to buffer
@@ -77,6 +76,8 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 
 		} catch (IOException e) {
 		} catch (InterruptedException e) {
+		} finally {
+			closed();
 		}
 	}
 }

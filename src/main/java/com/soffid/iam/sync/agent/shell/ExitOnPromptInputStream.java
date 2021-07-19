@@ -48,43 +48,43 @@ public class ExitOnPromptInputStream extends InputStream {
 			offset = 0;
 			buffer = null;
 			
-			if (buffer == null && errorThread != null)
+			synchronized (notifier)
 			{
-				buffer = errorThread.getLine();
-				if (buffer != null && buffer.length > 0)
-					error = true;
-				if (debug && buffer != null && buffer.length > 0)
-					log.info("ERROR: "+stringify(buffer));
-			}
-			if (buffer == null)
-			{
-				buffer = inputThread.getLine();
-				if (debug && buffer != null && buffer.length > 0)
-					log.info("OUTPUT: "+stringify(buffer));
-			}
-			if (buffer == null && inputThread.isPromptFound())
-			{
-				if (debug)
-					log.info("[PROMPT]");
-				eof = true;
-			}
-			if (buffer == null && inputThread.isClosed())
-			{
-				if (debug)
-					log.info("[EOF]");
-				eof = true;
-			}
-			
-			if (eof)
-			{
-				if (!persistent)
-					shellTunnel.closeShell();
-				return -1;
-			}
-			
-			if (buffer == null)
-			{
-				synchronized (notifier)
+				if (buffer == null && errorThread != null)
+				{
+					buffer = errorThread.getLine();
+					if (buffer != null && buffer.length > 0)
+						error = true;
+					if (debug && buffer != null && buffer.length > 0)
+						log.info("ERROR: "+stringify(buffer));
+				}
+				if (buffer == null)
+				{
+					buffer = inputThread.getLine();
+					if (debug && buffer != null && buffer.length > 0)
+						log.info("OUTPUT: "+stringify(buffer));
+				}
+				if (buffer == null && inputThread.isPromptFound())
+				{
+					if (debug)
+						log.info("[PROMPT]");
+					eof = true;
+				}
+				if (buffer == null && inputThread.isClosed())
+				{
+					if (debug)
+						log.info("[EOF]");
+					eof = true;
+				}
+				
+				if (eof)
+				{
+					if (!persistent)
+						shellTunnel.closeShell();
+					return -1;
+				}
+				
+				if (buffer == null)
 				{
 					try {
 						notifier.wait();

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 
 public class ConsumeErrorThread extends Thread
 {
+	Object lock = new Object();
 	protected InputStream in;
 	protected byte[] line;
 	protected boolean finish;
@@ -21,7 +22,7 @@ public class ConsumeErrorThread extends Thread
 		return finish;
 	}
 
-	private Object notifier;
+	protected Object notifier;
 	protected boolean debug;
 	protected Logger log;
 	protected String encoding;
@@ -43,38 +44,43 @@ public class ConsumeErrorThread extends Thread
 		this.notifier = notifier;
 	}
 	
-	public synchronized byte[] getLine() {
-		if (line == null)
-			return null;
-
-		byte[] previousLine = line;
-		line = null;
-		this.notify();
-		return previousLine;
+	public byte[] getLine() {
+		synchronized (lock) {
+			if (line == null)
+				return null;
+	
+			byte[] previousLine = line;
+			line = null;
+			lock.notify();
+			return previousLine;
+		}
 	}
 
-	public synchronized void finish() {
-		this.finish = true;
-		notify();
+	public void finish() {
+		synchronized (lock) {
+			this.finish = true;
+			lock.notify();
+		}
 	}
 
-	public synchronized void setLine(byte[] b) throws InterruptedException {
-		line = b;
+	public void setLine(byte[] b) throws InterruptedException {
+		byte[] l;
+		synchronized (lock) {
+			if (!finish && line != null)
+				lock.wait();
+			l = line = b;
+		}
 		if ( restartWord != null)
 		{
-			String s = new String(line);
+			String s = new String(l);
 			if (s.toLowerCase().contains(restartWord.toLowerCase()))
 			{
 				log.warn("Found forbidden word ["+restartWord+"] in response text "+s);
 				restart();
 			}
 		}
-		synchronized (notifier)
-		{
+		synchronized (notifier) {
 			notifier.notify();
-		}
-		if (!finish) {
-			this.wait();
 		}
 	}
 	
@@ -112,7 +118,6 @@ public class ConsumeErrorThread extends Thread
 					setLine ( bout.toByteArray() );
 					if (debug)
 						log.info("END-OF-ERROR-STREAM");
-					closed ();
 					return;
 				}
 				// Append to buffer
@@ -128,6 +133,8 @@ public class ConsumeErrorThread extends Thread
 				log.info("ERROR-STREAM-CLOSED");
 		} catch (IOException e) {
 		} catch (InterruptedException e) {
+		} finally {
+			closed();
 		}
 	}
 
