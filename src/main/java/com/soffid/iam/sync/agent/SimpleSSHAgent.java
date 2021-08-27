@@ -247,7 +247,10 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			SshConnection tunnel = new SshConnection(server, userName, null, new Password(password.getPassword()), "/bin/false") ;
 			tunnel.close();
 			return true;
-		} catch (JSchException | IOException e) {
+		} catch (JSchException e) {
+			log.warn("Error checking password", e);
+			return false;
+		} catch (IOException e) {
 			log.warn("Error checking password", e);
 			return false;
 		}
@@ -285,7 +288,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 						Account acc = new Account();
 						acc.setName(un);
 						acc.setDescription(m2.group(5));
-						HashMap<String, Object> attributes = new HashMap<>();
+						HashMap<String, Object> attributes = new HashMap<String, Object>();
 						acc.setAttributes(attributes);
 						attributes.put("uid", m2.group(3));
 						attributes.put("gid", m2.group(4));
@@ -388,7 +391,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			if (i >= 0) s = s.substring(i+1);
 			i = s.indexOf('\n');
 			if (i >= 0) s = s.substring(0, i);
-			List<RoleGrant> grants = new LinkedList<>();
+			List<RoleGrant> grants = new LinkedList<RoleGrant>();
 			for ( String group: s.split(" +")) {
 				if (!group.isEmpty()) {
 					RoleGrant g = new RoleGrant();
@@ -425,7 +428,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	public Collection<Map<String, Object>> invoke(String verb, String command,
 				Map<String, Object> params) throws RemoteException, InternalErrorException 
 	{
-		Collection<Map<String, Object>> l = new LinkedList<>();
+		Collection<Map<String, Object>> l = new LinkedList<Map<String, Object>>();
 		if (verb.equals("checkPassword"))
 		{
 			Map<String,Object> o = new HashMap<String, Object>();
