@@ -216,4 +216,12 @@
 				direction="inout" />
 		</object>
 	</agent>
+	<agent>
+		<name>Simple SSH Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.SimpleSSHAgent</javaClass>
+		<userInterface>SimpleSSHAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>false</authoritativeSource>
+		<enableAttributeMapping>true</enableAttributeMapping>
+	</agent>
 </seuServerPlugin>
