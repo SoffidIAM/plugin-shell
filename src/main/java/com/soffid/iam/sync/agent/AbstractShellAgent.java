@@ -83,7 +83,7 @@ public abstract class AbstractShellAgent extends Agent {
 	 * Used to speed up reconciliation
 	 */
 	HashMap<String, List<String>> existingGrants ;
-	static HashMap<String, HashMap<String, List<String>>> existingGrantsByAgent = new HashMap<>();
+	static HashMap<String, HashMap<String, List<String>>> existingGrantsByAgent = new HashMap<String, HashMap<String, List<String>>>();
 
 	public void init() throws InternalErrorException 
 	{
@@ -883,7 +883,7 @@ public abstract class AbstractShellAgent extends Agent {
 	public List<String> getRolesList() throws RemoteException,
 			InternalErrorException {
 		if (existingGrants == null)
-			existingGrants = new HashMap<>(); 
+			existingGrants = new HashMap<String,List<String>>(); 
 		existingGrants.clear();
 		
 		ValueObjectMapper vom = new ValueObjectMapper();

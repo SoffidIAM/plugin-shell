@@ -94,7 +94,9 @@ public class SshConnection {
 
 	private void init () throws IOException, JSchException
 	{
-		JSch.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
+		JSch.setConfig("PreferredAuthentications", "publickey,password");
+		if ("true".equals(System.getProperty("soffid.ssh.debug")))
+			JSch.setLogger(new DebugLogger());
 		jsch = new JSch();
 		if (keyFile != null && keyFile.trim().length() > 0)
 			jsch.addIdentity(keyFile);

@@ -180,7 +180,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			ExitOnPromptInputStream in;
 			try {
 				shellTunnel.idle();
-				in = shellTunnel.execute( parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \""+prompt+"\";\r\n");
+				in = shellTunnel.execute(parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \"\"; echo \""+prompt+"\";\r\n");
 			} catch (IOException e) {
 				shellTunnel.closeShell();
 				if (started)

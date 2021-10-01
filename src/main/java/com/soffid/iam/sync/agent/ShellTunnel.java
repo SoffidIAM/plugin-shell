@@ -68,12 +68,9 @@ public class ShellTunnel implements AbstractTunnel {
 		
 		if (shell == null || shell.trim().length() == 0)
 		{
-			
-			process  = File.separatorChar == '\\' ? 
-					Runtime.getRuntime().exec(cmd) :
-						Runtime.getRuntime().exec(split(cmd)) ;
+			process  = File.separatorChar == '\\' ? Runtime.getRuntime().exec(cmd) : Runtime.getRuntime().exec(split(cmd)) ;
 			if (debug)
-				log.info ("Executing process: "+cmd);
+				log.info ("EXECUTING PROCESS: "+cmd);
 			process.getOutputStream().close();
 			notifier = new Object ();
 			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);
@@ -94,8 +91,13 @@ public class ShellTunnel implements AbstractTunnel {
 		else if (! persistent || process == null)
 		{
 			if (debug)
-				log.info ("Executing process: "+shell);
-			process = Runtime.getRuntime().exec(shell);
+				log.info ("Executing shell: "+shell);
+			if ( File.separatorChar == '\\') {
+				for (String s: splitCmdLine(shell)) {
+					log.info(">> "+s);
+				}
+			}
+			process = File.separatorChar == '\\' ? Runtime.getRuntime().exec(splitCmdLine(shell)) : Runtime.getRuntime().exec(cmd) ;
 			notifier = new Object ();
 			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);
 			if (debug)
@@ -127,6 +129,29 @@ public class ShellTunnel implements AbstractTunnel {
 //			idleTimeout = null;
 		}
 		return new ExitOnPromptInputStream (inputThread, errorThread, notifier, this, persistent, debug, log);
+	}
+
+	private String[] splitCmdLine(String shell2) {
+		List<String> s = new LinkedList<String>();
+		boolean quote = false;
+		String last = "";
+		for (int i = 0; i < shell2.length(); i++) {
+			char ch = shell2.charAt(i);
+			if (ch == '\"') {
+				quote = ! quote;
+			}
+			if (ch != ' ' || quote)
+				last += ch;
+			else {
+				if (!last.isEmpty())
+				s.add(last);
+				last = "";
+			}
+		}
+		if (last.length() > 0)
+			s.add(last);
+		
+		return s.toArray(new String[s.size()]);
 	}
 
 	private String[] split(String cmd) {
