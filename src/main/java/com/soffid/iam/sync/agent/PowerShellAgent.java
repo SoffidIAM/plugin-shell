@@ -57,10 +57,12 @@ import es.caib.seycon.ng.sync.intf.UserMgr;
 public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObjectMgr, UserMgr, ReconcileMgr2, RoleMgr, MailAliasMgr,
 	AuthoritativeIdentitySource {
 
+	static String lock = new String("Lock");
 	String shell;
 
 	boolean persistentShell;
 	ShellTunnel shellTunnel;
+	static ShellTunnel freeTunnel = null;
 	String xmlOutFile;
 	String prompt;
 	String initialCommand;
@@ -103,8 +105,18 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		if (debugEnabled)
 			log.info ("Enabled DEBUG mode");
 			
-		
-		initTunnel();
+
+		synchronized (lock) {
+			if (freeTunnel != null && freeTunnel.isClosed())
+				freeTunnel = null;
+			
+			if (freeTunnel == null)
+				initTunnel();
+			else {
+				shellTunnel = freeTunnel;
+				freeTunnel = null;
+			}
+		}
 		try {
 			if (hashType != null && hashType.length() > 0)
 				digest = MessageDigest.getInstance(hashType);
@@ -113,6 +125,21 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 					"Unable to use SHA encryption algorithm ", e);
 		}
 	}
+
+	
+	public void close () {
+		synchronized(lock) {
+//			if (!shellTunnel.isClosed()) {
+//				if (freeTunnel != null) {
+//					freeTunnel.closeShell();
+//				}
+//				freeTunnel = shellTunnel;
+//			}
+			shellTunnel.closeShell();
+		}
+		super.close();
+	}
+
 
 	protected void initTunnel() throws InternalErrorException {
 		if (shellTunnel != null)

@@ -143,11 +143,13 @@ public class ExchangeAgent extends PowerShellAgent {
 			throw new InternalErrorException ("Unable to open power shell", e);
 		}
 	}
-	
-	public void close () {
-		shellTunnel.closeShell();
+
+	@Override
+	public void close() {
+		count --;
 		super.close();
 	}
-
+	
+	
 
 }

@@ -68,7 +68,7 @@ public class ShellTunnel implements AbstractTunnel {
 		
 		if (shell == null || shell.trim().length() == 0)
 		{
-			process  = File.separatorChar == '\\' ? Runtime.getRuntime().exec(cmd) : Runtime.getRuntime().exec(split(cmd)) ;
+			process = Runtime.getRuntime().exec(split(cmd)) ;
 			if (debug)
 				log.info ("EXECUTING PROCESS: "+cmd);
 			process.getOutputStream().close();
@@ -92,11 +92,6 @@ public class ShellTunnel implements AbstractTunnel {
 		{
 			if (debug)
 				log.info ("Executing shell: "+shell);
-			if ( File.separatorChar == '\\') {
-				for (String s: splitCmdLine(shell)) {
-					log.info(">> "+s);
-				}
-			}
 			process = File.separatorChar == '\\' ? Runtime.getRuntime().exec(splitCmdLine(shell)) : Runtime.getRuntime().exec(cmd) ;
 			notifier = new Object ();
 			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);

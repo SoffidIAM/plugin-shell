@@ -85,15 +85,12 @@ public class ShellTest extends TestCase {
 	public void test2 () throws IOException, JSchException, InterruptedException 
 	{
 		Password p = null;
-		// p = new Password("");
+		p = new Password("geheim01");
 		if (p != null)
 		{
 			dumpThreads();
 			SshConnection t = new SshConnection("forge.dev.lab", "bbuades", "/home/gbuades/.ssh/id_dsa", p, "pwd");
-			Thread.sleep(1000);
-			dumpThreads();
 			t.close();
-			Thread.sleep(1000);
 			dumpThreads();
 		}
 	}

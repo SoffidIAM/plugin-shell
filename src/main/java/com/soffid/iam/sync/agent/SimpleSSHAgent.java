@@ -444,6 +444,20 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 				
 			}
 		}
+		else if (verb.equals("invoke")) 
+		{
+			String s;
+			try {
+				s = execute(command);
+			} catch (ExecutionException e) {
+				throw new InternalErrorException("Error invoking command", e);
+			} catch (InternalErrorException e) {
+				throw e;
+			}
+			HashMap<String, Object> m = new HashMap<String,Object>();
+			m.put("result", s);
+			l.add(m);
+		}
 		return l;
 	}
 }
