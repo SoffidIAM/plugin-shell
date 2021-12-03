@@ -58,12 +58,21 @@ public class ShellTunnel implements AbstractTunnel {
 	private String exitCommand;
 	private String encoding;
 	private String restartWord;
+	private long expiration = 0;
 	
 	public ExitOnPromptInputStream execute (String cmd) throws IOException
 	{
 		if (encoding == null)
 		{
 			setEncoding( Charset.defaultCharset().name() );
+		}
+		
+		if (expiration > 0 && System.currentTimeMillis() > expiration && persistent && process != null) {
+			process.getOutputStream().close();
+			process.getInputStream().close();
+			process.getErrorStream().close();
+			process.destroy();
+			process = null;
 		}
 		
 		if (shell == null || shell.trim().length() == 0)
@@ -92,7 +101,7 @@ public class ShellTunnel implements AbstractTunnel {
 		{
 			if (debug)
 				log.info ("Executing shell: "+shell);
-			process = File.separatorChar == '\\' ? Runtime.getRuntime().exec(splitCmdLine(shell)) : Runtime.getRuntime().exec(cmd) ;
+			process = File.separatorChar == '\\' ? Runtime.getRuntime().exec(splitCmdLine(shell)) : Runtime.getRuntime().exec(shell) ;
 			notifier = new Object ();
 			inputThread = new ConsumeInputThread (process.getInputStream(), prompt, notifier, encoding);
 			if (debug)
@@ -207,10 +216,6 @@ public class ShellTunnel implements AbstractTunnel {
 		if (! empty || sb.length() > 0)
 		{
 			cmds.add (sb.toString());
-		}
-		for (String s: cmds)
-		{
-			log.info(">> "+s);
 		}
 		return cmds.toArray(new String[cmds.size()]);
 	}
@@ -341,5 +346,9 @@ public class ShellTunnel implements AbstractTunnel {
 			errorThread.setRestartWord(word);
 		if (inputThread != null)
 			inputThread.setRestartWord(word);
+	}
+
+	public void setMaxDuration(long d) {
+		expiration  = System.currentTimeMillis() + d;
 	}
 }
