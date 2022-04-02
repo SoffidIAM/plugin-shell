@@ -183,6 +183,9 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 				execute(sudoprefix+"/usr/sbin/usermod -c "+quote(account.getDescription())+" -m -d "+quote(homedir)+" --shell "+quote(shell)+" "+quote(account.getName()));
 			} catch (ExecutionException e) {
 				execute(sudoprefix+"/usr/sbin/useradd -c "+quote(account.getDescription())+" -k /etc/skel -m -d "+quote(homedir)+" --shell "+quote(shell)+" "+quote(account.getName()));
+				com.soffid.iam.api.Password p = getServer().getOrGenerateUserPassword(account.getName(), dispatcher.getName());
+				execute(sudoprefix+"chpasswd "+quote(account.getName()),
+						account.getName()+":"+p.getPassword()+"\n");
 			}
 			Collection<RoleGrant> grants = getServer().getAccountRoles(account.getName(), account.getSystem());
 			List<RoleGrant> grants0 = getAccountGrants(account.getName());
@@ -318,6 +321,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		StringBuffer sb2 = new StringBuffer();
 		for (char ch: t.toCharArray()) {
 			switch (ch) {
+				case ' ':
 				case '\\':
 				case '\'':
 				case '\"':
