@@ -68,10 +68,11 @@ public class ShellTunnel implements AbstractTunnel {
 		}
 		
 		if (expiration > 0 && System.currentTimeMillis() > expiration && persistent && process != null) {
+			log.info("Closing expired shell");
 			process.getOutputStream().close();
 			process.getInputStream().close();
 			process.getErrorStream().close();
-			process.destroy();
+			process.destroyForcibly();
 			process = null;
 		}
 		

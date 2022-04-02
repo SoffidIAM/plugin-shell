@@ -31,6 +31,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.soffid.iam.api.AccountStatus;
+import com.soffid.iam.api.MailList;
 
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.LlistaCorreu;
@@ -1552,6 +1553,25 @@ public abstract class AbstractShellAgent extends Agent {
 	}
 
 	public void removeListAlias(String nomLlista, String domini) throws InternalErrorException {
+		if (debugEnabled) log.info(">>> removeList: "+nomLlista+"@"+domini);
+		LlistaCorreu l = new LlistaCorreu();
+		l.setDescripcio(nomLlista+"@"+domini);
+		l.setNom(nomLlista);
+		l.setCodiDomini(domini);
+		l.setExplodedUsersList("");
+		l.setGroupMembers("");
+		l.setLlistaExterns("");
+		l.setLlistaLlistes("");
+		l.setLlistaLlistesOnPertany("");
+		l.setLlistaUsuaris("");
+		l.setRoleMembers("");
+		ExtensibleObject soffidObject = new MailListExtensibleObject(l, getServer());
+		for (ExtensibleObjectMapping objectMapping : objectMappings) {
+			if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_MAIL_LIST)) {
+				ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
+				delete(sqlobject, objectMapping.getProperties(), soffidObject);
+			}
+		}
 	}
 
 	public void removeUserAlias(String userKey) throws InternalErrorException {
