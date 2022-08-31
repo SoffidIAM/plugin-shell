@@ -66,28 +66,27 @@ public abstract class AbstractShellAgent extends Agent {
 	private static final String ERROR = "Error";
 	private static final String SUCCESS = "Success";
 	private static final String ATTRIBUTES = "Attributes";
-	
+
 	ValueObjectMapper vom = new ValueObjectMapper();
 	ObjectTranslator objectTranslator = null;
 	private static final long serialVersionUID = 1L;
 	protected boolean debugEnabled;
 	protected boolean xmlOutput = false;
-	
+
 	/** Hash algorithm */
 	MessageDigest digest = null;
 	private Collection<ExtensibleObjectMapping> objectMappings;
 	Date lastModification = null;
 	protected String passwordPrefix;
 	protected String hashType;
-	
-	/* 
+
+	/*
 	 * Used to speed up reconciliation
 	 */
-	HashMap<String, List<String>> existingGrants ;
+	HashMap<String, List<String>> existingGrants;
 	static HashMap<String, HashMap<String, List<String>>> existingGrantsByAgent = new HashMap<String, HashMap<String, List<String>>>();
 
-	public void init() throws InternalErrorException 
-	{
+	public void init() throws InternalErrorException {
 		try {
 			existingGrants = existingGrantsByAgent.get(getCodi());
 			if (existingGrants == null) {
@@ -97,11 +96,10 @@ public abstract class AbstractShellAgent extends Agent {
 			if (hashType != null && hashType.length() > 0)
 				digest = MessageDigest.getInstance(hashType);
 		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new InternalErrorException(
-					"Unable to use SHA encryption algorithm ", e);
+			throw new InternalErrorException("Unable to use SHA encryption algorithm ", e);
 		}
 	}
-	
+
 	private String stringify(String str) {
 		if (str == null)
 			return "";
@@ -132,14 +130,11 @@ public abstract class AbstractShellAgent extends Agent {
 		return password.getPassword();
 	}
 
-	private LinkedList<String> getTags(Map<String, String> sentences,
-			String prefix) {
+	private LinkedList<String> getTags(Map<String, String> sentences, String prefix) {
 		LinkedList<String> matches = new LinkedList<String>();
 		for (String tag : sentences.keySet()) {
-			if (tag.startsWith(prefix) && sentences.get(tag) != null
-					&& sentences.get(tag).trim().length() > 0) {
-				if (tag.equals(prefix)
-						|| Character.isDigit(tag.charAt(prefix.length())))
+			if (tag.startsWith(prefix) && sentences.get(tag) != null && sentences.get(tag).trim().length() > 0) {
+				if (tag.equals(prefix) || Character.isDigit(tag.charAt(prefix.length())))
 					matches.add(tag);
 			}
 		}
@@ -147,20 +142,16 @@ public abstract class AbstractShellAgent extends Agent {
 		return matches;
 	}
 
-	private void updateObject(ExtensibleObject obj, ExtensibleObject soffidObject)
-			throws InternalErrorException {
-		Map<String, String> properties = objectTranslator
-				.getObjectProperties(obj);
+	private void updateObject(ExtensibleObject obj, ExtensibleObject soffidObject) throws InternalErrorException {
+		Map<String, String> properties = objectTranslator.getObjectProperties(obj);
 		ExtensibleObject existingObject = new ExtensibleObject();
 		if (exists(obj, properties, existingObject)) {
-			if (preUpdate(soffidObject, obj, existingObject))
-			{
+			if (preUpdate(soffidObject, obj, existingObject)) {
 				update(obj, properties);
 				postUpdate(soffidObject, obj, existingObject);
 			}
 		} else {
-			if (preInsert(soffidObject, obj))
-			{
+			if (preInsert(soffidObject, obj)) {
 				insert(obj, properties);
 				postInsert(soffidObject, obj, obj);
 			}
@@ -169,12 +160,10 @@ public abstract class AbstractShellAgent extends Agent {
 
 	private boolean renameObject(ExtensibleObject obj, ExtensibleObject newObj, ExtensibleObject soffidObject)
 			throws InternalErrorException {
-		Map<String, String> properties = objectTranslator
-				.getObjectProperties(obj);
+		Map<String, String> properties = objectTranslator.getObjectProperties(obj);
 		ExtensibleObject existingObject = new ExtensibleObject();
 		if (exists(obj, properties, existingObject)) {
-			if (preUpdate(soffidObject, newObj, existingObject))
-			{
+			if (preUpdate(soffidObject, newObj, existingObject)) {
 				rename(newObj, properties);
 				update(newObj, properties);
 				postUpdate(soffidObject, newObj, existingObject);
@@ -185,8 +174,7 @@ public abstract class AbstractShellAgent extends Agent {
 		}
 	}
 
-	private void insert(ExtensibleObject obj, Map<String, String> properties)
-			throws InternalErrorException {
+	private void insert(ExtensibleObject obj, Map<String, String> properties) throws InternalErrorException {
 		debugObject("Creating object", obj, "");
 		for (String tag : getTags(properties, "insert")) {
 			executeSentence(properties, tag, obj, null);
@@ -196,47 +184,41 @@ public abstract class AbstractShellAgent extends Agent {
 	protected List<String[]> executeSentence(Map<String, String> properties, String tag, ExtensibleObject obj,
 			List<String> columnNames) throws InternalErrorException {
 		String sentence = properties.get(tag);
-		String errorExpression = properties.get(tag+ERROR);
-		String successExpression = properties.get(tag+SUCCESS);
+		String errorExpression = properties.get(tag + ERROR);
+		String successExpression = properties.get(tag + SUCCESS);
 		List<String[]> result = new LinkedList<String[]>();
 		if (columnNames != null)
 			columnNames.clear();
-		StringBuffer b = new StringBuffer ();
+		StringBuffer b = new StringBuffer();
 
 		parseSentence(sentence, obj, b);
-		
+
 		String parsedSentence = b.toString().trim();
 
 		String text;
 		try {
-			text = actualExecute( parsedSentence);
+			text = actualExecute(parsedSentence);
 		} catch (InternalErrorException e) {
-			throw new InternalErrorException ("Error executing "+sentence, e);
+			throw new InternalErrorException("Error executing " + sentence, e);
 		}
-		
+
 		parseExecutionResult(tag, properties, text, columnNames, result);
-		
-		if ( successExpression != null && ! Pattern.matches(successExpression, text))
-		{
-			throw new InternalErrorException ("Error executing sentence: "+text);
+
+		if (successExpression != null && !Pattern.matches(successExpression, text)) {
+			throw new InternalErrorException("Error executing sentence: " + text);
 		}
-		
-		if (errorExpression != null && Pattern.matches(errorExpression, text))
-		{
-			throw new InternalErrorException ("Error executing sentence: "+text);
+
+		if (errorExpression != null && Pattern.matches(errorExpression, text)) {
+			throw new InternalErrorException("Error executing sentence: " + text);
 		}
 		return result;
-		
+
 	}
 
-	protected void parseExecutionResult(String tag,
-			Map<String, String> properties, String text, 
-			List<String> columnNames,
-			List<String[]> result)
-			throws InternalErrorException {
-		String parseExpression = properties.get(tag+PARSE);
-		if ( xmlOutput)
-		{
+	protected void parseExecutionResult(String tag, Map<String, String> properties, String text,
+			List<String> columnNames, List<String[]> result) throws InternalErrorException {
+		String parseExpression = properties.get(tag + PARSE);
+		if (xmlOutput) {
 			NodeList list;
 			try {
 				Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(text);
@@ -246,90 +228,74 @@ public abstract class AbstractShellAgent extends Agent {
 				else
 					list = (NodeList) xpath.compile("/").evaluate(doc, XPathConstants.NODESET);
 			} catch (XPathExpressionException e) {
-				throw new InternalErrorException("Error evaluating XPATH expression "+parseExpression);
+				throw new InternalErrorException("Error evaluating XPATH expression " + parseExpression);
 			} catch (SAXException e) {
-				throw new InternalErrorException("Error parsing result "+text);
+				throw new InternalErrorException("Error parsing result " + text);
 			} catch (IOException e) {
-				throw new InternalErrorException("Error parsing result "+text);
+				throw new InternalErrorException("Error parsing result " + text);
 			} catch (ParserConfigurationException e) {
-				throw new InternalErrorException("Error parsing result: "+text);
+				throw new InternalErrorException("Error parsing result: " + text);
 			}
-			for ( int i = 0; i < list.getLength(); i ++)
-			{
+			for (int i = 0; i < list.getLength(); i++) {
 				List<String> row = new LinkedList<String>();
 				Node n = list.item(i);
 				if (columnNames != null)
-					populate (columnNames, row, "", n);
+					populate(columnNames, row, "", n);
 				else
 					row.add(n.getTextContent());
 				result.add(row.toArray(new String[row.size()]));
 			}
-		} 
-		else if ( parseExpression != null && parseExpression.trim().length() > 0)
-		{
+		} else if (parseExpression != null && parseExpression.trim().length() > 0) {
 			Pattern pattern = Pattern.compile(parseExpression);
 			Matcher matcher = pattern.matcher(text);
-			if (columnNames != null)
-			{
-				String attributes = properties.get(tag+ ATTRIBUTES);
-				if (attributes != null)
-				{
-					for (String header : attributes .split("[ ,]+"))
-					{
+			if (columnNames != null) {
+				String attributes = properties.get(tag + ATTRIBUTES);
+				if (attributes != null) {
+					for (String header : attributes.split("[ ,]+")) {
 						columnNames.add(header);
 					}
 				}
 			}
 
-			while (matcher.find())
-			{
+			while (matcher.find()) {
 				if (debugEnabled)
-					log.info ("Found on position "+matcher.start());
+					log.info("Found on position " + matcher.start());
 				int count = matcher.groupCount();
-				String row [] = new String[count+1];
+				String row[] = new String[count + 1];
 				for (int i = 0; i <= count; i++)
 					row[i] = matcher.group(i);
 				result.add(row);
-				if (columnNames != null)
-				{
-					while (columnNames.size() < row.length)
-					{
+				if (columnNames != null) {
+					while (columnNames.size() < row.length) {
 						columnNames.add("" + columnNames.size());
 					}
 				}
 			}
-		}
-		else
-		{
+		} else {
 			if (columnNames != null)
 				columnNames.add("1");
-			result.add(new String[] {text});
+			result.add(new String[] { text });
 		}
 	}
 
 	protected void populate(List<String> columnNames, List<String> row, String name, Node n) {
-		if (n instanceof Element)
-		{
-			for (int i = 0; i < n.getAttributes().getLength(); i++)
-			{
+		if (n instanceof Element) {
+			for (int i = 0; i < n.getAttributes().getLength(); i++) {
 				Attr att = (Attr) n.getAttributes().item(i);
-				populate (columnNames, row, name+"@"+att.getLocalName(), att.getValue());
+				populate(columnNames, row, name + "@" + att.getLocalName(), att.getValue());
 			}
-			populate (columnNames, row, name+"/text()", n.getTextContent());
+			populate(columnNames, row, name + "/text()", n.getTextContent());
 		}
 	}
 
 	protected void populate(List<String> columnNames, List<String> row, String name, String s) {
 		int i = 0;
-		for (i = 0; i < columnNames.size() ; i++)
-		{
-			if (columnNames.get(i).equals(name))
-			{
+		for (i = 0; i < columnNames.size(); i++) {
+			if (columnNames.get(i).equals(name)) {
 				break;
 			}
 		}
-		if (i == columnNames.size())
-		{
+		if (i == columnNames.size()) {
 			columnNames.add(name);
 		}
 		while (row.size() <= i)
@@ -337,15 +303,13 @@ public abstract class AbstractShellAgent extends Agent {
 		row.set(i, s);
 	}
 
-	protected abstract String actualExecute(String parsedSentence) throws InternalErrorException ;
+	protected abstract String actualExecute(String parsedSentence) throws InternalErrorException;
 
 	private void delete(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject soffidObject)
 			throws InternalErrorException {
 		ExtensibleObject existingObject = new ExtensibleObject();
-		if (exists(obj, properties, existingObject)) 
-		{
-			if (preDelete(soffidObject, obj))
-			{
+		if (exists(obj, properties, existingObject)) {
+			if (preDelete(soffidObject, obj)) {
 				debugObject("Removing object", obj, "");
 				for (String tag : getTags(properties, "delete")) {
 					executeSentence(properties, tag, obj, null);
@@ -358,10 +322,8 @@ public abstract class AbstractShellAgent extends Agent {
 	private void disable(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject soffidObject)
 			throws InternalErrorException {
 		ExtensibleObject existingObject = new ExtensibleObject();
-		if (exists(obj, properties, existingObject)) 
-		{
-			if (preDelete(soffidObject, obj))
-			{
+		if (exists(obj, properties, existingObject)) {
+			if (preDelete(soffidObject, obj)) {
 				debugObject("Removing object", obj, "");
 				boolean any = false;
 				for (String tag : getTags(properties, "disable")) {
@@ -378,16 +340,14 @@ public abstract class AbstractShellAgent extends Agent {
 		}
 	}
 
-	private void update(ExtensibleObject obj, Map<String, String> properties)
-			throws InternalErrorException {
+	private void update(ExtensibleObject obj, Map<String, String> properties) throws InternalErrorException {
 		debugObject("Updating object", obj, "");
 		for (String tag : getTags(properties, "update")) {
 			executeSentence(properties, tag, obj, null);
 		}
 	}
 
-	private void rename(ExtensibleObject obj, Map<String, String> properties)
-			throws InternalErrorException {
+	private void rename(ExtensibleObject obj, Map<String, String> properties) throws InternalErrorException {
 		debugObject("Renaming object", obj, "");
 		for (String tag : getTags(properties, "rename")) {
 			executeSentence(properties, tag, obj, null);
@@ -396,16 +356,15 @@ public abstract class AbstractShellAgent extends Agent {
 
 	private boolean exists(ExtensibleObject obj, Map<String, String> properties, ExtensibleObject existingObject)
 			throws InternalErrorException {
-		
+
 		for (String tag : getTags(properties, "check")) {
 			List<String> columnNames = new LinkedList<String>();
-			List<String[]> rows = executeSentence(properties, tag, obj, columnNames );
+			List<String[]> rows = executeSentence(properties, tag, obj, columnNames);
 			if (!rows.isEmpty()) {
 				if (debugEnabled)
 					log.info("Object already exists");
 				String row[] = rows.get(0);
-				for (int i = 0 ; i < row.length; i++)
-				{
+				for (int i = 0; i < row.length; i++) {
 					existingObject.setAttribute(columnNames.get(i), row[i]);
 				}
 				return true;
@@ -416,8 +375,8 @@ public abstract class AbstractShellAgent extends Agent {
 		return false;
 	}
 
-	private boolean passFilter(String filter, ExtensibleObject eo,
-			ExtensibleObject query) throws InternalErrorException {
+	private boolean passFilter(String filter, ExtensibleObject eo, ExtensibleObject query)
+			throws InternalErrorException {
 		if (filter == null || filter.trim().length() == 0)
 			return true;
 
@@ -429,8 +388,7 @@ public abstract class AbstractShellAgent extends Agent {
 			return true;
 	}
 
-	protected void parseSentence(String sentence, Map<String, Object> params,
-			StringBuffer parsedSentence) {
+	protected void parseSentence(String sentence, Map<String, Object> params, StringBuffer parsedSentence) {
 		int position = 0;
 		// First, transforma sentence into a valid SQL API sentence
 		do {
@@ -449,25 +407,19 @@ public abstract class AbstractShellAgent extends Agent {
 				int paramStart = nextDollar + 1;
 				int paramEnd = paramStart;
 				String param;
-				if (sentence.charAt(paramEnd) == '{')
-				{
+				if (sentence.charAt(paramEnd) == '{') {
 					int i = 1;
-					paramEnd ++;
-					while (i > 0 && paramEnd < sentence.length())
-					{
+					paramEnd++;
+					while (i > 0 && paramEnd < sentence.length()) {
 						if (sentence.charAt(paramEnd) == '{')
-							i ++;
+							i++;
 						else if (sentence.charAt(paramEnd) == '}')
-							i --;
-						paramEnd ++;
+							i--;
+						paramEnd++;
 					}
-					param = sentence.substring(paramStart+1, paramEnd-1);
-				}
-				else
-				{
-					while (paramEnd < sentence.length()
-							&& Character.isJavaIdentifierPart(sentence
-									.charAt(paramEnd))) {
+					param = sentence.substring(paramStart + 1, paramEnd - 1);
+				} else {
+					while (paramEnd < sentence.length() && Character.isJavaIdentifierPart(sentence.charAt(paramEnd))) {
 						paramEnd++;
 					}
 					param = sentence.substring(paramStart, paramEnd);
@@ -482,18 +434,15 @@ public abstract class AbstractShellAgent extends Agent {
 	public void configureMappings(Collection<ExtensibleObjectMapping> objects)
 			throws RemoteException, InternalErrorException {
 		this.objectMappings = objects;
-		objectTranslator = new ObjectTranslator(getDispatcher(), getServer(),
-				objectMappings);
+		objectTranslator = new ObjectTranslator(getDispatcher(), getServer(), objectMappings);
 		objectTranslator.setObjectFinder(new ExtensibleObjectFinder() {
-			
+
 			public ExtensibleObject find(ExtensibleObject pattern) throws Exception {
-				log.info("Searching for native object "+pattern.toString());
+				log.info("Searching for native object " + pattern.toString());
 				ExtensibleObject result = new ExtensibleObject();
 				for (ExtensibleObjectMapping objectMapping : objectMappings) {
-					if (objectMapping.getSystemObject().equals( pattern.getObjectType()))
-					{
-						if (exists (pattern, objectMapping.getProperties(), result))
-						{
+					if (objectMapping.getSystemObject().equals(pattern.getObjectType())) {
+						if (exists(pattern, objectMapping.getProperties(), result)) {
 							return result;
 						}
 					}
@@ -501,39 +450,36 @@ public abstract class AbstractShellAgent extends Agent {
 				return null;
 			}
 
-			public Collection<Map<String,Object>> invoke (String verb, String command, Map<String, Object> params) throws InternalErrorException
-			{
-				if (debugEnabled)
-				{
-					log.info ("Invoking: "+verb+" on "+command);
+			public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
+					throws InternalErrorException {
+				if (debugEnabled) {
+					log.info("Invoking: " + verb + " on " + command);
 				}
 
 				ExtensibleObject o = new ExtensibleObject();
 				if (params != null)
-				o.putAll(params);
+					o.putAll(params);
 
-				List<Map<String, Object>> result = new LinkedList<Map<String,Object>>();
+				List<Map<String, Object>> result = new LinkedList<Map<String, Object>>();
 
 				List<String> columnNames = new ArrayList<String>();
-				
+
 				String text;
 				try {
 					StringBuffer b = new StringBuffer();
-					parseSentence(command, params, b );
-					
+					parseSentence(command, params, b);
+
 					String parsedSentence = b.toString().trim();
-					text = actualExecute( parsedSentence );
+					text = actualExecute(parsedSentence);
 				} catch (InternalErrorException e) {
-					throw new InternalErrorException ("Error executing "+command, e);
+					throw new InternalErrorException("Error executing " + command, e);
 				}
-				
+
 				List<String[]> r = new LinkedList<String[]>();
 				parseExecutionResult("", new HashMap(), text, columnNames, r);
-				for (String[] row: r)
-				{
+				for (String[] row : r) {
 					HashMap<String, Object> object = new HashMap<String, Object>();
-					for (int i = 0 ; i < row.length; i++)
-					{
+					for (int i = 0; i < row.length; i++) {
 						object.put(columnNames.get(i), row[i]);
 					}
 					result.add(object);
@@ -554,386 +500,370 @@ public abstract class AbstractShellAgent extends Agent {
 		super();
 	}
 
-	public Collection<AuthoritativeChange> getChanges()
-			throws InternalErrorException {
+	public Collection<AuthoritativeChange> getChanges() throws InternalErrorException {
+		getConnection();
+		try {
 
-		LinkedList<AuthoritativeChange> changes = new LinkedList<AuthoritativeChange>();
-		ExtensibleObject emptyObject = new ExtensibleObject();
-		emptyObject.setAttribute("LASTCHANGE", lastCommitedModification);
+			LinkedList<AuthoritativeChange> changes = new LinkedList<AuthoritativeChange>();
+			ExtensibleObject emptyObject = new ExtensibleObject();
+			emptyObject.setAttribute("LASTCHANGE", lastCommitedModification);
 
-		lastModification = new Date();
-		LinkedList<Long> changeIds = new LinkedList<Long>();
+			lastModification = new Date();
+			LinkedList<Long> changeIds = new LinkedList<Long>();
 
-		for (ExtensibleObjectMapping objMapping : objectMappings) {
-			if (objMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_USER)
-					|| objMapping.getSoffidObject().equals(
-							SoffidObjectType.OBJECT_AUTHORITATIVE_CHANGE)) {
-				for (String tag : getTags(objMapping.getProperties(),
-						"selectAll")) {
-					String filter = objMapping.getProperties().get(tag + PARSE);
-					String sentence = objMapping.getProperties().get(tag);
-					List<String> columnNames = new LinkedList<String>();
-					List<String[]> rows = executeSentence(objMapping.getProperties(), tag, emptyObject, columnNames );
-					for (Object[] row : rows) {
-						ExtensibleObject resultObject = new ExtensibleObject();
-						resultObject
-								.setObjectType(objMapping.getSystemObject());
-						for (int i = 0; i < row.length; i++) {
-							String param = columnNames.get(i);
-							if (resultObject.getAttribute(param) == null) {
-								resultObject.setAttribute(param, row[i]);
+			for (ExtensibleObjectMapping objMapping : objectMappings) {
+				if (objMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER)
+						|| objMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_AUTHORITATIVE_CHANGE)) {
+					for (String tag : getTags(objMapping.getProperties(), "selectAll")) {
+						String filter = objMapping.getProperties().get(tag + PARSE);
+						String sentence = objMapping.getProperties().get(tag);
+						List<String> columnNames = new LinkedList<String>();
+						List<String[]> rows = executeSentence(objMapping.getProperties(), tag, emptyObject,
+								columnNames);
+						for (Object[] row : rows) {
+							ExtensibleObject resultObject = new ExtensibleObject();
+							resultObject.setObjectType(objMapping.getSystemObject());
+							for (int i = 0; i < row.length; i++) {
+								String param = columnNames.get(i);
+								if (resultObject.getAttribute(param) == null) {
+									resultObject.setAttribute(param, row[i]);
+								}
 							}
-						}
-						debugObject("Got authoritative change", resultObject,
-								"");
-						if (!passFilter(filter, resultObject, null))
-							log.info("Discarding row");
-						else {
-							ExtensibleObject translated = objectTranslator
-									.parseInputObject(resultObject, objMapping);
-							debugObject("Translated to", translated, "");
-							AuthoritativeChange ch = new ValueObjectMapper()
-									.parseAuthoritativeChange(translated);
-							if (ch != null) {
-								changes.add(ch);
-							} else {
-								Usuari usuari = new ValueObjectMapper()
-										.parseUsuari(translated);
-								if (usuari != null) {
-									if (debugEnabled && usuari != null)
-										log.info("Result user: "
-												+ usuari.toString());
-									Long changeId = new Long(lastChangeId++);
-									ch = new AuthoritativeChange();
-									ch.setId(new AuthoritativeChangeIdentifier());
-									ch.getId().setInternalId(changeId);
-									ch.setUser(usuari);
-									Map<String, Object> userAttributes = (Map<String, Object>) translated
-											.getAttribute("attributes");
-									ch.setAttributes(userAttributes);
+							debugObject("Got authoritative change", resultObject, "");
+							if (!passFilter(filter, resultObject, null))
+								log.info("Discarding row");
+							else {
+								ExtensibleObject translated = objectTranslator.parseInputObject(resultObject,
+										objMapping);
+								debugObject("Translated to", translated, "");
+								AuthoritativeChange ch = new ValueObjectMapper().parseAuthoritativeChange(translated);
+								if (ch != null) {
 									changes.add(ch);
-									changeIds.add(changeId);
+								} else {
+									Usuari usuari = new ValueObjectMapper().parseUsuari(translated);
+									if (usuari != null) {
+										if (debugEnabled && usuari != null)
+											log.info("Result user: " + usuari.toString());
+										Long changeId = new Long(lastChangeId++);
+										ch = new AuthoritativeChange();
+										ch.setId(new AuthoritativeChangeIdentifier());
+										ch.getId().setInternalId(changeId);
+										ch.setUser(usuari);
+										Map<String, Object> userAttributes = (Map<String, Object>) translated
+												.getAttribute("attributes");
+										ch.setAttributes(userAttributes);
+										changes.add(ch);
+										changeIds.add(changeId);
+									}
 								}
 							}
 						}
 					}
 				}
 			}
+			pendingChanges.addAll(changeIds);
+			return changes;
+		} finally {
+			releaseConnection();
 		}
-		pendingChanges.addAll(changeIds);
-		return changes;
 	}
 
-	public void commitChange(AuthoritativeChangeIdentifier id)
-			throws InternalErrorException {
+	public void commitChange(AuthoritativeChangeIdentifier id) throws InternalErrorException {
 		pendingChanges.remove(id.getInternalId());
 		if (pendingChanges.isEmpty())
 			lastCommitedModification = lastModification;
 	}
 
-	public void updateRole(Rol role) throws RemoteException,
-			InternalErrorException {
-		ExtensibleObject soffidObject = new RoleExtensibleObject(role,
-				getServer());
-
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ROLE)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject, soffidObject);
-			}
-		}
-		// Next update role members
+	public void updateRole(Rol role) throws RemoteException, InternalErrorException {
+		getConnection();
 		try {
-			updateRoleMembers(
-					role,null);
-		} catch (UnknownRoleException e) {
-			throw new InternalErrorException("Error updating role", e);
+			ExtensibleObject soffidObject = new RoleExtensibleObject(role, getServer());
+
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ROLE)) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					updateObject(systemObject, soffidObject);
+				}
+			}
+			// Next update role members
+			try {
+				updateRoleMembers(role, null);
+			} catch (UnknownRoleException e) {
+				throw new InternalErrorException("Error updating role", e);
+			}
+		} finally {
+			releaseConnection();
 		}
 	}
 
 	private void updateRoleMembers(Rol role, Collection<Account> initialGrants)
 			throws InternalErrorException, UnknownRoleException {
-		RolGrant grant = new RolGrant();
-		grant.setRolName(role.getNom());
-		grant.setDispatcher(role.getBaseDeDades());
-		grant.setOwnerDispatcher(role.getBaseDeDades());
-
-		GrantExtensibleObject sample = new GrantExtensibleObject(grant,
-				getServer());
-		ValueObjectMapper vom = new ValueObjectMapper();
-
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_GRANTED_ROLE)
-					|| objectMapping.getSoffidObject().equals(
-							SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
-				// First get existing roles
-				LinkedList<ExtensibleObject> existingRoles = new LinkedList<ExtensibleObject>();
-				boolean foundSelect = false;
-				for (String tag : getTags(objectMapping.getProperties(),
-						"selectByRole")) {
-					existingRoles
-							.addAll(selectSystemObjects(
-									sample,
-									objectMapping,
-									tag));
-					foundSelect = true;
-				}
-				if (foundSelect) {
-					if (initialGrants == null)
-						initialGrants = getServer().getRoleAccounts(role.getId(),
-										getDispatcher().getCodi());
-					// Now get roles to have
-					Collection<Account> grants = new LinkedList<Account>(
-							initialGrants);
-					// Now add non existing roles
-					for (Iterator<Account> accountIterator = grants.iterator(); accountIterator
-							.hasNext();) {
-						Account account = accountIterator.next();
-
-						// Check if this account is already granted
-						boolean found = false;
-						for (Iterator<ExtensibleObject> objectIterator = existingRoles
-								.iterator(); !found && objectIterator.hasNext();) {
-							ExtensibleObject object = objectIterator.next();
-							String accountName = vom
-									.toSingleString(objectTranslator
-											.parseInputAttribute(
-													"ownerAccount", object,
-													objectMapping));
-							if (accountName != null
-									&& accountName.equals(account.getName())) {
-								objectIterator.remove();
-								found = true;
-							}
-						}
-						if (!found) {
-							RolGrant rg = new RolGrant();
-							rg.setOwnerAccountName(account.getName());
-							rg.setOwnerDispatcher(account.getDispatcher());
-							rg.setRolName(role.getNom());
-							rg.setDispatcher(role.getBaseDeDades());
-							ExtensibleObject object = objectTranslator
-									.generateObject(new GrantExtensibleObject(
-											rg, getServer()), objectMapping);
-							updateObject(object, object);
-						}
-					}
-					// Now remove unneeded grants
-					for (Iterator<ExtensibleObject> objectIterator = existingRoles
-							.iterator(); objectIterator.hasNext();) {
-						ExtensibleObject object = objectIterator.next();
-						ExtensibleObject eo = new ExtensibleObject();
-						eo.setObjectType(objectMapping.getSoffidObject().toString());
-						delete(object, objectMapping.getProperties(), eo);
-					}
-				}
-			}
-		}
-
-	}
-
-	private Collection<? extends ExtensibleObject> selectSystemObjects(
-			ExtensibleObject sample, ExtensibleObjectMapping objectMapping,
-			String tag)
-			throws InternalErrorException {
-		List<ExtensibleObject> result = new LinkedList<ExtensibleObject>();
-
-		List<String> columnNames = new LinkedList<String>();
-		List<String[]> rows = executeSentence(objectMapping.getProperties(), tag, sample, columnNames );
-		for (Object[] row : rows) {
-			StringBuffer buffer = new StringBuffer();
-			ExtensibleObject rowObject = new ExtensibleObject();
-			rowObject.setObjectType(objectMapping.getSystemObject());
-			for (int i = 0; i < row.length; i++) {
-				rowObject.setAttribute(columnNames.get(i), row[i]);
-
-				if (debugEnabled) {
-					if (i == 0)
-						buffer.append("ROW: ");
-					else
-						buffer.append(", ");
-					if (row[i] == null)
-						buffer.append("NULL");
-					else
-						buffer.append(row[i].toString());
-				}
-			}
-//			log.info(stringify(buffer.toString()));
-			result.add(rowObject);
-		}
-		return result;
-	}
-
-	public void removeRole(String rolName, String dispatcher)
-			throws RemoteException, InternalErrorException {
-		Rol role = new Rol();
-		role.setNom(rolName);
-		role.setBaseDeDades(dispatcher);
-		ExtensibleObject soffidObject = new RoleExtensibleObject(role,
-				getServer());
-
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ROLE)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				delete(systemObject, objectMapping.getProperties(), soffidObject);
-			}
-		}
-		// Next remove role members
-		Collection<Account> emptyList = Collections.emptyList();
+		getConnection();
 		try {
-			updateRoleMembers(role, emptyList);
-		} catch (UnknownRoleException e) {
-			throw new InternalErrorException("Error removing role", e);
-		}
-	}
+			RolGrant grant = new RolGrant();
+			grant.setRolName(role.getNom());
+			grant.setDispatcher(role.getBaseDeDades());
+			grant.setOwnerDispatcher(role.getBaseDeDades());
 
-	public List<String> getAccountsList() throws RemoteException,
-			InternalErrorException {
+			GrantExtensibleObject sample = new GrantExtensibleObject(grant, getServer());
+			ValueObjectMapper vom = new ValueObjectMapper();
 
-		ValueObjectMapper vom = new ValueObjectMapper();
-		ExtensibleObject sample = new ExtensibleObject();
-		List<String> accountNames = new LinkedList<String>();
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ACCOUNT)) {
-				for (String tag : getTags(objectMapping.getProperties(),
-						"selectAll")) {
-					for (ExtensibleObject obj : selectSystemObjects(sample,
-							objectMapping, tag)) {
-						debugObject("Got system object", obj, "");
-						String accountName = vom
-								.toSingleString(objectTranslator
-										.parseInputAttribute("accountName",
-												obj, objectMapping));
-						if (debugEnabled)
-							log.info("Account name = " + stringify(accountName));
-						if (accountName != null && ! accountName.isEmpty())
-							accountNames.add(accountName);
+			// For each mapping
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_GRANTED_ROLE)
+						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
+					// First get existing roles
+					LinkedList<ExtensibleObject> existingRoles = new LinkedList<ExtensibleObject>();
+					boolean foundSelect = false;
+					for (String tag : getTags(objectMapping.getProperties(), "selectByRole")) {
+						existingRoles.addAll(selectSystemObjects(sample, objectMapping, tag));
+						foundSelect = true;
 					}
-				}
-			}
-		}
+					if (foundSelect) {
+						if (initialGrants == null)
+							initialGrants = getServer().getRoleAccounts(role.getId(), getDispatcher().getCodi());
+						// Now get roles to have
+						Collection<Account> grants = new LinkedList<Account>(initialGrants);
+						// Now add non existing roles
+						for (Iterator<Account> accountIterator = grants.iterator(); accountIterator.hasNext();) {
+							Account account = accountIterator.next();
 
-		return accountNames;
-	}
-
-	public Account getAccountInfo(String userAccount) throws RemoteException,
-			InternalErrorException {
-		ValueObjectMapper vom = new ValueObjectMapper();
-		Account acc = new Account();
-		acc.setName(userAccount);
-		acc.setDispatcher(getCodi());
-		ExtensibleObject sample = new AccountExtensibleObject(acc, getServer());
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ACCOUNT)) {
-				ExtensibleObject translatedSample = objectTranslator
-						.generateObject(sample, objectMapping);
-				for (String tag : getTags(objectMapping.getProperties(),
-						"selectByAccountName")) {
-					for (ExtensibleObject obj : selectSystemObjects(
-							translatedSample, objectMapping, tag)) {
-						debugObject("Got account system object", obj, "");
-						ExtensibleObject soffidObj = objectTranslator
-								.parseInputObject(obj, objectMapping);
-						debugObject("Translated account soffid object",
-								soffidObj, "");
-
-						if (objectMapping.getSoffidObject().equals(
-								SoffidObjectType.OBJECT_ACCOUNT)) {
-							Account acc2 = vom.parseAccount(soffidObj);
-							if (debugEnabled) {
-								log.info("Resulting account: "
-										+ stringify(acc2.toString()));
+							// Check if this account is already granted
+							boolean found = false;
+							for (Iterator<ExtensibleObject> objectIterator = existingRoles.iterator(); !found
+									&& objectIterator.hasNext();) {
+								ExtensibleObject object = objectIterator.next();
+								String accountName = vom.toSingleString(
+										objectTranslator.parseInputAttribute("ownerAccount", object, objectMapping));
+								if (accountName != null && accountName.equals(account.getName())) {
+									objectIterator.remove();
+									found = true;
+								}
 							}
-							return acc2;
-						} else {
-							Usuari u = vom.parseUsuari(soffidObj);
-							Account acc2 = vom.parseAccount(soffidObj);
-							acc2.setDispatcher(getCodi());
-							if (acc2.getName() == null)
-								acc2.setName(u.getCodi());
-							if (acc2.getDescription() == null)
-								acc2.setDescription(u.getFullName());
-							if (acc2.getDescription() == null)
-								acc2.setDescription(u.getNom() + " "
-										+ u.getPrimerLlinatge());
-							log.info("Resulting account: "
-									+ stringify(acc2.toString()));
-							return acc2;
+							if (!found) {
+								RolGrant rg = new RolGrant();
+								rg.setOwnerAccountName(account.getName());
+								rg.setOwnerDispatcher(account.getDispatcher());
+								rg.setRolName(role.getNom());
+								rg.setDispatcher(role.getBaseDeDades());
+								ExtensibleObject object = objectTranslator
+										.generateObject(new GrantExtensibleObject(rg, getServer()), objectMapping);
+								updateObject(object, object);
+							}
+						}
+						// Now remove unneeded grants
+						for (Iterator<ExtensibleObject> objectIterator = existingRoles.iterator(); objectIterator
+								.hasNext();) {
+							ExtensibleObject object = objectIterator.next();
+							ExtensibleObject eo = new ExtensibleObject();
+							eo.setObjectType(objectMapping.getSoffidObject().toString());
+							delete(object, objectMapping.getProperties(), eo);
 						}
 					}
 				}
 			}
+		} finally {
+			releaseConnection();
 		}
 
-		return null;
 	}
 
-	public List<String> getRolesList() throws RemoteException,
-			InternalErrorException {
-		if (existingGrants == null)
-			existingGrants = new HashMap<String,List<String>>(); 
-		existingGrants.clear();
-		
-		ValueObjectMapper vom = new ValueObjectMapper();
-		ExtensibleObject sample = new ExtensibleObject();
-		List<String> roleNames = new LinkedList<String>();
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ROLE)) {
-				for (String tag : getTags(objectMapping.getProperties(),
-						"selectAll")) {
-					for (ExtensibleObject obj : selectSystemObjects(sample,
-							objectMapping,
-							tag)) {
-						debugObject("Got role object", obj, "");
-						String roleName = vom
-								.toSingleString(objectTranslator
-										.parseInputAttribute("name", obj,
-												objectMapping));
-						if (debugEnabled)
-							log.info("Role name = " + stringify(roleName));
-						if (roleName != null && !roleName.trim().isEmpty()) {
-							roleNames.add(roleName);
-							Collection<String> grants = (Collection<String>) objectTranslator.parseInputAttribute("grantedAccountNames", obj, objectMapping);
-							if (grants == null)
-								grants = (Collection<String>) objectTranslator.parseInputAttribute("allGrantedAccountNames", obj, objectMapping);
-							if (grants != null) {
-								for (String grant: grants) {
-									log.info("Recording grant to "+grant);
-									if (grant != null) {
-										List<String> l = existingGrants.get(grant);
-										if (l == null) l = new LinkedList<String>();
-										l.add(roleName);
-										existingGrants.put(grant,  l);
-									}
+	private Collection<? extends ExtensibleObject> selectSystemObjects(ExtensibleObject sample,
+			ExtensibleObjectMapping objectMapping, String tag) throws InternalErrorException {
+		getConnection();
+		try {
+			List<ExtensibleObject> result = new LinkedList<ExtensibleObject>();
+
+			List<String> columnNames = new LinkedList<String>();
+			List<String[]> rows = executeSentence(objectMapping.getProperties(), tag, sample, columnNames);
+			for (Object[] row : rows) {
+				StringBuffer buffer = new StringBuffer();
+				ExtensibleObject rowObject = new ExtensibleObject();
+				rowObject.setObjectType(objectMapping.getSystemObject());
+				for (int i = 0; i < row.length; i++) {
+					rowObject.setAttribute(columnNames.get(i), row[i]);
+
+					if (debugEnabled) {
+						if (i == 0)
+							buffer.append("ROW: ");
+						else
+							buffer.append(", ");
+						if (row[i] == null)
+							buffer.append("NULL");
+						else
+							buffer.append(row[i].toString());
+					}
+				}
+//			log.info(stringify(buffer.toString()));
+				result.add(rowObject);
+			}
+			return result;
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public void removeRole(String rolName, String dispatcher) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			Rol role = new Rol();
+			role.setNom(rolName);
+			role.setBaseDeDades(dispatcher);
+			ExtensibleObject soffidObject = new RoleExtensibleObject(role, getServer());
+
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ROLE)) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					delete(systemObject, objectMapping.getProperties(), soffidObject);
+				}
+			}
+			// Next remove role members
+			Collection<Account> emptyList = Collections.emptyList();
+			try {
+				updateRoleMembers(role, emptyList);
+			} catch (UnknownRoleException e) {
+				throw new InternalErrorException("Error removing role", e);
+			}
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public List<String> getAccountsList() throws RemoteException, InternalErrorException {
+
+		getConnection();
+		try {
+			ValueObjectMapper vom = new ValueObjectMapper();
+			ExtensibleObject sample = new ExtensibleObject();
+			List<String> accountNames = new LinkedList<String>();
+			// For each mapping
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+					for (String tag : getTags(objectMapping.getProperties(), "selectAll")) {
+						for (ExtensibleObject obj : selectSystemObjects(sample, objectMapping, tag)) {
+							debugObject("Got system object", obj, "");
+							String accountName = vom.toSingleString(
+									objectTranslator.parseInputAttribute("accountName", obj, objectMapping));
+							if (debugEnabled)
+								log.info("Account name = " + stringify(accountName));
+							if (accountName != null && !accountName.isEmpty())
+								accountNames.add(accountName);
+						}
+					}
+				}
+			}
+
+			return accountNames;
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public Account getAccountInfo(String userAccount) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			ValueObjectMapper vom = new ValueObjectMapper();
+			Account acc = new Account();
+			acc.setName(userAccount);
+			acc.setDispatcher(getCodi());
+			ExtensibleObject sample = new AccountExtensibleObject(acc, getServer());
+			// For each mapping
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+					ExtensibleObject translatedSample = objectTranslator.generateObject(sample, objectMapping);
+					for (String tag : getTags(objectMapping.getProperties(), "selectByAccountName")) {
+						for (ExtensibleObject obj : selectSystemObjects(translatedSample, objectMapping, tag)) {
+							debugObject("Got account system object", obj, "");
+							ExtensibleObject soffidObj = objectTranslator.parseInputObject(obj, objectMapping);
+							debugObject("Translated account soffid object", soffidObj, "");
+
+							if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+								Account acc2 = vom.parseAccount(soffidObj);
+								if (debugEnabled) {
+									log.info("Resulting account: " + stringify(acc2.toString()));
 								}
+								return acc2;
 							} else {
-								Collection<Map<String,String>> grants2 = (Collection<Map<String, String>>) objectTranslator.parseInputAttribute("grantedAccounts", obj, objectMapping);
-								if (grants2 == null)
-									grants2 = (Collection<Map<String, String>>) objectTranslator.parseInputAttribute("allGrantedAccounts", obj, objectMapping);
-								if (grants2 != null) {
-									for (Map<String, String> grant: grants2) {
-										String accountName = grant.get("accountName");
-										log.info("Recording grant to "+grant);
-										if (accountName != null) {
-											List<String> l = existingGrants.get(accountName);
-											if (l == null) l = new LinkedList<String>();
+								Usuari u = vom.parseUsuari(soffidObj);
+								Account acc2 = vom.parseAccount(soffidObj);
+								acc2.setDispatcher(getCodi());
+								if (acc2.getName() == null)
+									acc2.setName(u.getCodi());
+								if (acc2.getDescription() == null)
+									acc2.setDescription(u.getFullName());
+								if (acc2.getDescription() == null)
+									acc2.setDescription(u.getNom() + " " + u.getPrimerLlinatge());
+								log.info("Resulting account: " + stringify(acc2.toString()));
+								return acc2;
+							}
+						}
+					}
+				}
+			}
+
+			return null;
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public List<String> getRolesList() throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			if (existingGrants == null)
+				existingGrants = new HashMap<String, List<String>>();
+			existingGrants.clear();
+
+			ValueObjectMapper vom = new ValueObjectMapper();
+			ExtensibleObject sample = new ExtensibleObject();
+			List<String> roleNames = new LinkedList<String>();
+			// For each mapping
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ROLE)) {
+					for (String tag : getTags(objectMapping.getProperties(), "selectAll")) {
+						for (ExtensibleObject obj : selectSystemObjects(sample, objectMapping, tag)) {
+							debugObject("Got role object", obj, "");
+							String roleName = vom
+									.toSingleString(objectTranslator.parseInputAttribute("name", obj, objectMapping));
+							if (debugEnabled)
+								log.info("Role name = " + stringify(roleName));
+							if (roleName != null && !roleName.trim().isEmpty()) {
+								roleNames.add(roleName);
+								Collection<String> grants = (Collection<String>) objectTranslator
+										.parseInputAttribute("grantedAccountNames", obj, objectMapping);
+								if (grants == null)
+									grants = (Collection<String>) objectTranslator
+											.parseInputAttribute("allGrantedAccountNames", obj, objectMapping);
+								if (grants != null) {
+									for (String grant : grants) {
+										log.info("Recording grant to " + grant);
+										if (grant != null) {
+											List<String> l = existingGrants.get(grant);
+											if (l == null)
+												l = new LinkedList<String>();
 											l.add(roleName);
-											existingGrants.put(accountName,  l);
+											existingGrants.put(grant, l);
+										}
+									}
+								} else {
+									Collection<Map<String, String>> grants2 = (Collection<Map<String, String>>) objectTranslator
+											.parseInputAttribute("grantedAccounts", obj, objectMapping);
+									if (grants2 == null)
+										grants2 = (Collection<Map<String, String>>) objectTranslator
+												.parseInputAttribute("allGrantedAccounts", obj, objectMapping);
+									if (grants2 != null) {
+										for (Map<String, String> grant : grants2) {
+											String accountName = grant.get("accountName");
+											log.info("Recording grant to " + grant);
+											if (accountName != null) {
+												List<String> l = existingGrants.get(accountName);
+												if (l == null)
+													l = new LinkedList<String>();
+												l.add(roleName);
+												existingGrants.put(accountName, l);
+											}
 										}
 									}
 								}
@@ -942,179 +872,164 @@ public abstract class AbstractShellAgent extends Agent {
 					}
 				}
 			}
-		}
 
-		return roleNames;
+			return roleNames;
+		} finally {
+			releaseConnection();
+		}
 	}
 
-	public Rol getRoleFullInfo(String roleName) throws RemoteException,
-			InternalErrorException {
-		ValueObjectMapper vom = new ValueObjectMapper();
-		Rol r = new Rol();
-		r.setNom(roleName);
-		r.setBaseDeDades(getCodi());
-		ExtensibleObject sample = new RoleExtensibleObject(r, getServer());
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ROLE)) {
-				ExtensibleObjectMapping eom2 = new ExtensibleObjectMapping(
-						objectMapping);
-				eom2.setAttributes(objectMapping.getAttributes());
-				eom2.setProperties(objectMapping.getProperties());
-				eom2.setCondition(null);
-				ExtensibleObject translatedSample = objectTranslator
-						.generateObject(sample, eom2);
-				if (translatedSample != null) {
-					for (String tag : getTags(objectMapping.getProperties(),
-							"selectByName")) {
-						for (ExtensibleObject obj : selectSystemObjects(
-								translatedSample,
-								objectMapping,
-								tag)) {
-							debugObject("Got system role object", obj, "");
-							ExtensibleObject soffidObj = objectTranslator
-									.parseInputObject(obj, objectMapping);
-							debugObject("Translated soffid role object",
-									soffidObj, "");
-							return vom.parseRol(soffidObj);
-						}
-					}
-				}
-			}
-		}
-
-		return null;
-	}
-
-	public List<RolGrant> getAccountGrants(String userAccount)
-			throws RemoteException, InternalErrorException {
-		log.info("Getting grants for "+userAccount);
-		RolGrant grant = new RolGrant();
-		grant.setOwnerAccountName(userAccount);
-		grant.setDispatcher(getCodi());
-		grant.setOwnerDispatcher(getCodi());
-
-		GrantExtensibleObject sample = new GrantExtensibleObject(grant,
-				getServer());
-		ValueObjectMapper vom = new ValueObjectMapper();
-		List<RolGrant> result = new LinkedList<RolGrant>();
-
-		if ( existingGrants != null && ! existingGrants.isEmpty()) {
-			log.info("Fetching recorded grants for "+userAccount);
-			List<String> grants = existingGrants.get(userAccount);
-			if (grants != null) {
-				for (String role: grants) {
-					log.info("Fetching recorded grants "+role);
-					RolGrant rg = new RolGrant();
-					rg.setRolName(role);
-					rg.setDispatcher(getCodi());
-					rg.setOwnerAccountName(userAccount);
-					rg.setOwnerDispatcher(getCodi());
-					result.add(rg);
-				}
-			}
-		} else {
+	public Rol getRoleFullInfo(String roleName) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			ValueObjectMapper vom = new ValueObjectMapper();
+			Rol r = new Rol();
+			r.setNom(roleName);
+			r.setBaseDeDades(getCodi());
+			ExtensibleObject sample = new RoleExtensibleObject(r, getServer());
 			// For each mapping
 			for (ExtensibleObjectMapping objectMapping : objectMappings) {
-				if (objectMapping.getSoffidObject().equals(
-						SoffidObjectType.OBJECT_GRANTED_ROLE)
-						|| objectMapping.getSoffidObject().equals(
-								SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
-					// First get existing roles
-					ExtensibleObject translatedSample = objectTranslator
-							.generateObject(sample, objectMapping, true);
-					Collection<? extends ExtensibleObject> existingRoles;
-					for (String tag : getTags(objectMapping.getProperties(),
-							"selectByAccount")) {
-						existingRoles = selectSystemObjects(translatedSample,
-								objectMapping,
-								tag);
-						for (Iterator<? extends ExtensibleObject> objectIterator = existingRoles
-								.iterator(); objectIterator.hasNext();) {
-							ExtensibleObject object = objectIterator.next();
-							debugObject("Got system grant object", object, null);
-							ExtensibleObject soffidObject = objectTranslator
-									.parseInputObject(object, objectMapping);
-							debugObject("Translated soffid grant object",
-									soffidObject, null);
-							grant = vom.parseGrant(soffidObject);
-							if (debugEnabled)
-								log.info("Resulting grant = " + grant.toString());
-							result.add(grant);
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ROLE)) {
+					ExtensibleObjectMapping eom2 = new ExtensibleObjectMapping(objectMapping);
+					eom2.setAttributes(objectMapping.getAttributes());
+					eom2.setProperties(objectMapping.getProperties());
+					eom2.setCondition(null);
+					ExtensibleObject translatedSample = objectTranslator.generateObject(sample, eom2);
+					if (translatedSample != null) {
+						for (String tag : getTags(objectMapping.getProperties(), "selectByName")) {
+							for (ExtensibleObject obj : selectSystemObjects(translatedSample, objectMapping, tag)) {
+								debugObject("Got system role object", obj, "");
+								ExtensibleObject soffidObj = objectTranslator.parseInputObject(obj, objectMapping);
+								debugObject("Translated soffid role object", soffidObj, "");
+								return vom.parseRol(soffidObj);
+							}
 						}
 					}
 				}
 			}
+
+			return null;
+		} finally {
+			releaseConnection();
 		}
-		return result;
 	}
 
-	public void updateUser(String accountName, Usuari userData)
-			throws RemoteException, InternalErrorException {
-		Account acc = getServer().getAccountInfo(accountName, getCodi());
-		ExtensibleObject soffidObject = new UserExtensibleObject(acc, userData,
-				getServer());
+	public List<RolGrant> getAccountGrants(String userAccount) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			log.info("Getting grants for " + userAccount);
+			RolGrant grant = new RolGrant();
+			grant.setOwnerAccountName(userAccount);
+			grant.setDispatcher(getCodi());
+			grant.setOwnerDispatcher(getCodi());
 
-		String password;
-		password = getAccountPassword(accountName);
-		soffidObject.put("password", password);
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_USER)) {
-				if ( acc.getOldName() != null)
-				{
-					if ( ! getTags(objectMapping.getProperties(), "rename").isEmpty())
-					{
-						Account acc2 = new Account (acc);
-						acc2.setName(acc.getOldName());
-						ExtensibleObject systemObject = objectTranslator
-								.generateObject(soffidObject, objectMapping);
-						ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData,
-								getServer());
-						ExtensibleObject systemObject2 = objectTranslator
-								.generateObject(soffidObject2, objectMapping);
-						if (!renameObject(systemObject2, systemObject, soffidObject)) {
-							acc.setOldName(null);
-							soffidObject.put("oldAccountName", null);
-							systemObject = objectTranslator
-									.generateObject(soffidObject, objectMapping);
-							updateObject(systemObject, soffidObject);
+			GrantExtensibleObject sample = new GrantExtensibleObject(grant, getServer());
+			ValueObjectMapper vom = new ValueObjectMapper();
+			List<RolGrant> result = new LinkedList<RolGrant>();
+
+			if (existingGrants != null && !existingGrants.isEmpty()) {
+				log.info("Fetching recorded grants for " + userAccount);
+				List<String> grants = existingGrants.get(userAccount);
+				if (grants != null) {
+					for (String role : grants) {
+						log.info("Fetching recorded grants " + role);
+						RolGrant rg = new RolGrant();
+						rg.setRolName(role);
+						rg.setDispatcher(getCodi());
+						rg.setOwnerAccountName(userAccount);
+						rg.setOwnerDispatcher(getCodi());
+						result.add(rg);
+					}
+				}
+			} else {
+				// For each mapping
+				for (ExtensibleObjectMapping objectMapping : objectMappings) {
+					if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_GRANTED_ROLE)
+							|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
+						// First get existing roles
+						ExtensibleObject translatedSample = objectTranslator.generateObject(sample, objectMapping,
+								true);
+						Collection<? extends ExtensibleObject> existingRoles;
+						for (String tag : getTags(objectMapping.getProperties(), "selectByAccount")) {
+							existingRoles = selectSystemObjects(translatedSample, objectMapping, tag);
+							for (Iterator<? extends ExtensibleObject> objectIterator = existingRoles
+									.iterator(); objectIterator.hasNext();) {
+								ExtensibleObject object = objectIterator.next();
+								debugObject("Got system grant object", object, null);
+								ExtensibleObject soffidObject = objectTranslator.parseInputObject(object,
+										objectMapping);
+								debugObject("Translated soffid grant object", soffidObject, null);
+								grant = vom.parseGrant(soffidObject);
+								if (debugEnabled)
+									log.info("Resulting grant = " + grant.toString());
+								result.add(grant);
+							}
 						}
 					}
-					else
-					{
-						Account acc2 = new Account (acc);
-						acc2.setName(acc.getOldName());
-						ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData,
-								getServer());
-						ExtensibleObject systemObject2 = objectTranslator
-								.generateObject(soffidObject2, objectMapping);
-						if (debugEnabled) log.info(">>> updateUser: "+accountName+", userData: "+userData);
-						delete(systemObject2, objectMapping.getProperties(), soffidObject);
-						ExtensibleObject systemObject = objectTranslator
-								.generateObject(soffidObject, objectMapping);
+				}
+			}
+			return result;
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public void updateUser(String accountName, Usuari userData) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			Account acc = getServer().getAccountInfo(accountName, getCodi());
+			ExtensibleObject soffidObject = new UserExtensibleObject(acc, userData, getServer());
+
+			String password;
+			password = getAccountPassword(accountName);
+			soffidObject.put("password", password);
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER)) {
+					if (acc.getOldName() != null) {
+						if (!getTags(objectMapping.getProperties(), "rename").isEmpty()) {
+							Account acc2 = new Account(acc);
+							acc2.setName(acc.getOldName());
+							ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject,
+									objectMapping);
+							ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData, getServer());
+							ExtensibleObject systemObject2 = objectTranslator.generateObject(soffidObject2,
+									objectMapping);
+							if (!renameObject(systemObject2, systemObject, soffidObject)) {
+								acc.setOldName(null);
+								soffidObject.put("oldAccountName", null);
+								systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+								updateObject(systemObject, soffidObject);
+							}
+						} else {
+							Account acc2 = new Account(acc);
+							acc2.setName(acc.getOldName());
+							ExtensibleObject soffidObject2 = new UserExtensibleObject(acc2, userData, getServer());
+							ExtensibleObject systemObject2 = objectTranslator.generateObject(soffidObject2,
+									objectMapping);
+							if (debugEnabled)
+								log.info(">>> updateUser: " + accountName + ", userData: " + userData);
+							delete(systemObject2, objectMapping.getProperties(), soffidObject);
+							ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject,
+									objectMapping);
+							updateObject(systemObject, soffidObject);
+						}
+					} else {
+						ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
 						updateObject(systemObject, soffidObject);
 					}
 				}
-				else
-				{
-					ExtensibleObject systemObject = objectTranslator
-							.generateObject(soffidObject, objectMapping);
-					updateObject(systemObject, soffidObject);
-				}
 			}
-		}
-		// Next update role members
+			// Next update role members
 
-		updateUserRoles(accountName, null,
-				getServer().getAccountRoles(accountName, getCodi()),
-				getServer().getAccountExplicitRoles(accountName, getCodi()));
+			updateUserRoles(accountName, null, getServer().getAccountRoles(accountName, getCodi()),
+					getServer().getAccountExplicitRoles(accountName, getCodi()));
+		} finally {
+			releaseConnection();
+		}
 	}
 
-	private String getAccountPassword(String accountName)
-			throws InternalErrorException {
+	private String getAccountPassword(String accountName) throws InternalErrorException {
 		String password;
 		Password p = getServer().getAccountPassword(accountName, getCodi());
 		if (p == null) {
@@ -1124,337 +1039,312 @@ public abstract class AbstractShellAgent extends Agent {
 		return password;
 	}
 
-	private void updateUserRoles(String accountName, Usuari userData,
-			Collection<RolGrant> allGrants, Collection<RolGrant> explicitGrants)
-			throws InternalErrorException {
-		RolGrant grant = new RolGrant();
-		grant.setOwnerAccountName(accountName);
-		grant.setDispatcher(getCodi());
-		grant.setOwnerDispatcher(getCodi());
+	private void updateUserRoles(String accountName, Usuari userData, Collection<RolGrant> allGrants,
+			Collection<RolGrant> explicitGrants) throws InternalErrorException {
+		getConnection();
+		try {
+			RolGrant grant = new RolGrant();
+			grant.setOwnerAccountName(accountName);
+			grant.setDispatcher(getCodi());
+			grant.setOwnerDispatcher(getCodi());
 
-		ValueObjectMapper vom = new ValueObjectMapper();
+			ValueObjectMapper vom = new ValueObjectMapper();
 
-		// For each mapping
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_GRANTED_ROLE)
-					|| objectMapping.getSoffidObject().equals(
-							SoffidObjectType.OBJECT_GRANT)
-					|| objectMapping.getSoffidObject().equals(
-							SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
-				ExtensibleObject sample = objectTranslator.generateObject(
-						new GrantExtensibleObject(grant, getServer()),
-						objectMapping);
-				// First get existing roles
-				LinkedList<ExtensibleObject> existingRoles = new LinkedList<ExtensibleObject>();
-				boolean foundSelect = false;
-				for (String tag : getTags(objectMapping.getProperties(),
-						"selectByAccount")) {
-					existingRoles
-							.addAll(selectSystemObjects(
-									sample,
-									objectMapping,
-									tag));
-					foundSelect = true;
-				}
-				if (foundSelect) {
-					// Now get roles to have
-					Collection<RolGrant> grants = objectMapping
-							.getSoffidObject().equals(
-									SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ? new LinkedList<RolGrant>(
-							allGrants) : new LinkedList<RolGrant>(
-							explicitGrants);
-					// Now add non existing roles
-					for (Iterator<RolGrant> grantIterator = grants.iterator(); grantIterator
-							.hasNext();) {
-						RolGrant newGrant = grantIterator.next();
+			// For each mapping
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_GRANTED_ROLE)
+						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_GRANT)
+						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES)) {
+					ExtensibleObject sample = objectTranslator
+							.generateObject(new GrantExtensibleObject(grant, getServer()), objectMapping);
+					// First get existing roles
+					LinkedList<ExtensibleObject> existingRoles = new LinkedList<ExtensibleObject>();
+					boolean foundSelect = false;
+					for (String tag : getTags(objectMapping.getProperties(), "selectByAccount")) {
+						existingRoles.addAll(selectSystemObjects(sample, objectMapping, tag));
+						foundSelect = true;
+					}
+					if (foundSelect) {
+						// Now get roles to have
+						Collection<RolGrant> grants = objectMapping.getSoffidObject()
+								.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ? new LinkedList<RolGrant>(allGrants)
+										: new LinkedList<RolGrant>(explicitGrants);
+						// Now add non existing roles
+						for (Iterator<RolGrant> grantIterator = grants.iterator(); grantIterator.hasNext();) {
+							RolGrant newGrant = grantIterator.next();
 
-						if (debugEnabled)
-							log.info("Testing rol grant " + newGrant);
+							if (debugEnabled)
+								log.info("Testing rol grant " + newGrant);
 
-						// Check if this account is already granted
-						boolean found = false;
-						for (Iterator<ExtensibleObject> objectIterator = existingRoles
-								.iterator(); !found && objectIterator.hasNext();) {
-							ExtensibleObject object = objectIterator.next();
-							String roleName = vom
-									.toSingleString(objectTranslator
-											.parseInputAttribute("grantedRole",
-													object, objectMapping));
-							if (roleName != null
-									&& roleName.equals(newGrant.getRolName())) {
-								String domainValue = vom
-										.toSingleString(objectTranslator
-												.parseInputAttribute(
-														"domainValue", object,
-														objectMapping));
-								if (domainValue == null
-										&& newGrant.getDomainValue() == null
-										|| newGrant.getDomainValue() != null
-										&& newGrant.getDomainValue().equals(
-												domainValue)) {
-									objectIterator.remove();
-									if (debugEnabled)
-										debugObject("Found rol grant "
-												+ newGrant + ": ", object, "");
-									found = true;
+							// Check if this account is already granted
+							boolean found = false;
+							for (Iterator<ExtensibleObject> objectIterator = existingRoles.iterator(); !found
+									&& objectIterator.hasNext();) {
+								ExtensibleObject object = objectIterator.next();
+								String roleName = vom.toSingleString(
+										objectTranslator.parseInputAttribute("grantedRole", object, objectMapping));
+								if (roleName != null && roleName.equals(newGrant.getRolName())) {
+									String domainValue = vom.toSingleString(
+											objectTranslator.parseInputAttribute("domainValue", object, objectMapping));
+									if (domainValue == null && newGrant.getDomainValue() == null
+											|| newGrant.getDomainValue() != null
+													&& newGrant.getDomainValue().equals(domainValue)) {
+										objectIterator.remove();
+										if (debugEnabled)
+											debugObject("Found rol grant " + newGrant + ": ", object, "");
+										found = true;
+									}
+								}
+							}
+							if (!found) {
+								newGrant.setOwnerAccountName(accountName);
+								newGrant.setOwnerDispatcher(getCodi());
+								GrantExtensibleObject soffidObject = new GrantExtensibleObject(newGrant, getServer());
+								ExtensibleObject object = objectTranslator.generateObject(soffidObject, objectMapping);
+								debugObject("Role to grant: ", object, "");
+								if (preInsert(soffidObject, object)) {
+									insert(object, objectMapping.getProperties());
+									postInsert(soffidObject, object, object);
 								}
 							}
 						}
-						if (!found) {
-							newGrant.setOwnerAccountName(accountName);
-							newGrant.setOwnerDispatcher(getCodi());
-							GrantExtensibleObject soffidObject = new GrantExtensibleObject(
-									newGrant, getServer());
-							ExtensibleObject object = objectTranslator
-									.generateObject(soffidObject,
-											objectMapping);
-							debugObject("Role to grant: ", object, "");
-							if (preInsert(soffidObject, object))
-							{
-								insert(object, objectMapping.getProperties());
-								postInsert(soffidObject, object, object);
-							}
-						}
-					}
-					// Now remove unneeded grants
-					for (Iterator<ExtensibleObject> objectIterator = existingRoles
-							.iterator(); objectIterator.hasNext();) {
-						ExtensibleObject object = objectIterator.next();
-						ExtensibleObject src = objectTranslator.parseInputObject(object, objectMapping);
-						src.setAttribute("ownerAccount", accountName);
-						debugObject("Role to revoke: ", src, "");
+						// Now remove unneeded grants
+						for (Iterator<ExtensibleObject> objectIterator = existingRoles.iterator(); objectIterator
+								.hasNext();) {
+							ExtensibleObject object = objectIterator.next();
+							ExtensibleObject src = objectTranslator.parseInputObject(object, objectMapping);
+							src.setAttribute("ownerAccount", accountName);
+							debugObject("Role to revoke: ", src, "");
 
-						ExtensibleObject target = objectTranslator.generateObject(src, objectMapping, false);
-						target.putAll(object);
-						
-						if (preDelete(src, target))
-						{
-							debugObject("Removing object", target, "");
-							for (String tag : getTags(objectMapping.getProperties(), "delete")) {
-								executeSentence(objectMapping.getProperties(), tag, target, null);
+							ExtensibleObject target = objectTranslator.generateObject(src, objectMapping, false);
+							target.putAll(object);
+
+							if (preDelete(src, target)) {
+								debugObject("Removing object", target, "");
+								for (String tag : getTags(objectMapping.getProperties(), "delete")) {
+									executeSentence(objectMapping.getProperties(), tag, target, null);
+								}
+								postDelete(src, target);
 							}
-							postDelete(src, target);
 						}
 					}
 				}
 			}
+		} finally {
+			releaseConnection();
 		}
 
 	}
 
-	public void updateUser(String accountName, String description)
-			throws RemoteException, InternalErrorException {
-		Account acc = getServer().getAccountInfo(accountName, getCodi());
-		ExtensibleObject soffidObject = new AccountExtensibleObject(acc,
-				getServer());
+	public void updateUser(String accountName, String description) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			Account acc = getServer().getAccountInfo(accountName, getCodi());
+			ExtensibleObject soffidObject = new AccountExtensibleObject(acc, getServer());
 
-		String password;
-		password = getAccountPassword(accountName);
-		soffidObject.put("password", password);
+			String password;
+			password = getAccountPassword(accountName);
+			soffidObject.put("password", password);
 
-		if (debugEnabled)
-		{
-			log.info("Updating account "+acc.toString() );
-		}
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ACCOUNT)) {
-				if ( acc.getOldName() != null)
-				{
-					if ( ! getTags(objectMapping.getProperties(), "rename").isEmpty())
-					{
-						Account acc2 = new Account (acc);
-						acc2.setName(acc.getOldName());
-						ExtensibleObject systemObject = objectTranslator
-								.generateObject(soffidObject, objectMapping);
-						ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2, 
-								getServer());
-						ExtensibleObject systemObject2 = objectTranslator
-								.generateObject(soffidObject2, objectMapping);
-						if (!renameObject(systemObject2, systemObject, soffidObject)) {
-							acc.setOldName(acc.getName());
-							soffidObject.put("oldAccountName", acc.getName());
-							log.info("Updating "+acc);
-							debugObject("Source", soffidObject, "  ");
-							systemObject = objectTranslator
-									.generateObject(soffidObject, objectMapping);
-							debugObject("Generated", systemObject, "  ");
+			if (debugEnabled) {
+				log.info("Updating account " + acc.toString());
+			}
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+					if (acc.getOldName() != null) {
+						if (!getTags(objectMapping.getProperties(), "rename").isEmpty()) {
+							Account acc2 = new Account(acc);
+							acc2.setName(acc.getOldName());
+							ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject,
+									objectMapping);
+							ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2, getServer());
+							ExtensibleObject systemObject2 = objectTranslator.generateObject(soffidObject2,
+									objectMapping);
+							if (!renameObject(systemObject2, systemObject, soffidObject)) {
+								acc.setOldName(acc.getName());
+								soffidObject.put("oldAccountName", acc.getName());
+								log.info("Updating " + acc);
+								debugObject("Source", soffidObject, "  ");
+								systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+								debugObject("Generated", systemObject, "  ");
+								updateObject(systemObject, soffidObject);
+							}
+						} else {
+							Account acc2 = new Account(acc);
+							acc2.setName(acc.getOldName());
+							ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2, getServer());
+							ExtensibleObject systemObject2 = objectTranslator.generateObject(soffidObject2,
+									objectMapping);
+							if (debugEnabled)
+								log.info(">>> updateUser: " + accountName + ", description: " + description);
+							delete(systemObject2, objectMapping.getProperties(), soffidObject);
+							ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject,
+									objectMapping);
 							updateObject(systemObject, soffidObject);
 						}
-					}
-					else
-					{
-						Account acc2 = new Account (acc);
-						acc2.setName(acc.getOldName());
-						ExtensibleObject soffidObject2 = new AccountExtensibleObject(acc2,
-								getServer());
-						ExtensibleObject systemObject2 = objectTranslator
-								.generateObject(soffidObject2, objectMapping);
-						if (debugEnabled) log.info(">>> updateUser: "+accountName+", description: "+description);
-						delete(systemObject2, objectMapping.getProperties(), soffidObject);
-						ExtensibleObject systemObject = objectTranslator
-								.generateObject(soffidObject, objectMapping);
+					} else {
+						ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
 						updateObject(systemObject, soffidObject);
 					}
 				}
-				else
-				{
-					ExtensibleObject systemObject = objectTranslator
-							.generateObject(soffidObject, objectMapping);
-					updateObject(systemObject, soffidObject);
-				}
 			}
-		}
-		// Next update role members
+			// Next update role members
 
-		updateUserRoles(accountName, null,
-				getServer().getAccountRoles(accountName, getCodi()),
-				getServer().getAccountExplicitRoles(accountName, getCodi()));
+			updateUserRoles(accountName, null, getServer().getAccountRoles(accountName, getCodi()),
+					getServer().getAccountExplicitRoles(accountName, getCodi()));
+		} finally {
+			releaseConnection();
+		}
 	}
 
 	public void removeUser(String accountName) throws RemoteException, InternalErrorException {
-		if (debugEnabled) log.info(">>> removeUser: "+accountName);
-		Account a = getServer().getAccountInfo(accountName, getCodi());
-		if (a==null) {
-			// The account is removed
-			Account acc = new Account();
-			acc.setName(accountName);
-			acc.setDescription(null);
-			acc.setDisabled(true);
-			acc.setDispatcher(getCodi());
-			ExtensibleObject soffidObject = new AccountExtensibleObject(acc, getServer());
-			for (ExtensibleObjectMapping objectMapping : objectMappings) {
-				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
-					ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
-					delete(sqlobject, objectMapping.getProperties(), soffidObject);
-				}
-			}
-		} else {
-			// The account is disabled
-			if (debugEnabled) log.info(">>> isDisabled: "+a.isDisabled());
-			if (debugEnabled) log.info(">>> status: "+a.getStatus());
-			Usuari user = null;
-			for (Object i : a.getOwnerUsers()) {
-				if (i instanceof Usuari)
-					user = (Usuari) i;
-				else {
-					try {
-						user = getServer().getUserInfo(i.toString(), getCodi());
-					} catch (UnknownUserException e) {
-						e.printStackTrace();
-					}
-				}
-				break;
-			}
-			
-			ExtensibleObject soffidObject = user == null ? new UserExtensibleObject(a, user, getServer()) : new AccountExtensibleObject(a, getServer());
-			
-			if (debugEnabled) log.info(">>> user: "+user);
-			for (ExtensibleObjectMapping objectMapping : objectMappings) {
-				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
-					ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
-					if (a.getStatus() == AccountStatus.REMOVED) {
+		getConnection();
+		try {
+			if (debugEnabled)
+				log.info(">>> removeUser: " + accountName);
+			Account a = getServer().getAccountInfo(accountName, getCodi());
+			if (a == null) {
+				// The account is removed
+				Account acc = new Account();
+				acc.setName(accountName);
+				acc.setDescription(null);
+				acc.setDisabled(true);
+				acc.setDispatcher(getCodi());
+				acc.setAttributes(new HashMap<String, Object>());
+				ExtensibleObject soffidObject = new AccountExtensibleObject(acc, getServer());
+				for (ExtensibleObjectMapping objectMapping : objectMappings) {
+					if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+						ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
 						delete(sqlobject, objectMapping.getProperties(), soffidObject);
-					} else {
-						disable(sqlobject, objectMapping.getProperties(), soffidObject);
+					}
+				}
+			} else {
+				// The account is disabled
+				if (debugEnabled)
+					log.info(">>> isDisabled: " + a.isDisabled());
+				if (debugEnabled)
+					log.info(">>> status: " + a.getStatus());
+				Usuari user = null;
+				for (Object i : a.getOwnerUsers()) {
+					if (i instanceof Usuari)
+						user = (Usuari) i;
+					else {
+						try {
+							user = getServer().getUserInfo(i.toString(), getCodi());
+						} catch (UnknownUserException e) {
+							e.printStackTrace();
+						}
+					}
+					break;
+				}
+
+				ExtensibleObject soffidObject = user != null ? new UserExtensibleObject(a, user, getServer())
+						: new AccountExtensibleObject(a, getServer());
+
+				if (debugEnabled)
+					log.info(">>> user: " + user);
+				for (ExtensibleObjectMapping objectMapping : objectMappings) {
+					if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)) {
+						ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
+						if (a.getStatus() == AccountStatus.REMOVED) {
+							delete(sqlobject, objectMapping.getProperties(), soffidObject);
+						} else {
+							disable(sqlobject, objectMapping.getProperties(), soffidObject);
+						}
 					}
 				}
 			}
+		} finally {
+			releaseConnection();
 		}
 	}
 
-	public void updateUserPassword(String accountName, Usuari userData,
-			Password password, boolean mustchange) throws RemoteException,
-			InternalErrorException 
-	{
-		log.info("Setting password for user "+accountName+" at "+getCodi()+" User: "+(userData == null ? "null": userData.getCodi()));
-		Account acc = getServer().getAccountInfo(accountName, getCodi());
-		ExtensibleObject soffidObject = userData == null? 
-				new AccountExtensibleObject(acc, getServer()):
-				new UserExtensibleObject(acc, userData,	getServer());
-		
-		soffidObject.put("password", getHashPassword(password));
-		soffidObject.put("mustChangePassword", mustchange);
+	public void updateUserPassword(String accountName, Usuari userData, Password password, boolean mustchange)
+			throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			log.info("Setting password for user " + accountName + " at " + getCodi() + " User: "
+					+ (userData == null ? "null" : userData.getCodi()));
+			Account acc = getServer().getAccountInfo(accountName, getCodi());
+			ExtensibleObject soffidObject = userData == null ? new AccountExtensibleObject(acc, getServer())
+					: new UserExtensibleObject(acc, userData, getServer());
 
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)	&& userData == null
-					|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER) && userData != null) {
-				log.info("Setting password using mapping "+objectMapping.getSystemObject());
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				Map<String, String> properties = objectTranslator
-						.getObjectProperties(systemObject);
+			soffidObject.put("password", getHashPassword(password));
+			soffidObject.put("mustChangePassword", mustchange);
 
-				LinkedList<String> updatePasswordTags = getTags(properties,
-						"updatePassword");
-				ExtensibleObject existingObject = new ExtensibleObject();
-				if (!exists(systemObject, properties, existingObject )) {
-					if (preInsert(soffidObject, systemObject))
-					{
-						insert(systemObject, properties);
-						postInsert(soffidObject, systemObject, systemObject);
-					}
-				}
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT) && userData == null
+						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER) && userData != null) {
+					log.info("Setting password using mapping " + objectMapping.getSystemObject());
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					Map<String, String> properties = objectTranslator.getObjectProperties(systemObject);
 
-				if ( preUpdate(soffidObject, systemObject, existingObject))
-				{
-							
-					if (updatePasswordTags.isEmpty())
-						update(systemObject, properties);
-					else {
-						for (String s : updatePasswordTags) {
-							executeSentence(properties, s, systemObject, null);
+					LinkedList<String> updatePasswordTags = getTags(properties, "updatePassword");
+					ExtensibleObject existingObject = new ExtensibleObject();
+					if (!exists(systemObject, properties, existingObject)) {
+						if (preInsert(soffidObject, systemObject)) {
+							insert(systemObject, properties);
+							postInsert(soffidObject, systemObject, systemObject);
 						}
 					}
-					postUpdate(soffidObject, systemObject, existingObject);
+
+					if (preUpdate(soffidObject, systemObject, existingObject)) {
+
+						if (updatePasswordTags.isEmpty())
+							update(systemObject, properties);
+						else {
+							for (String s : updatePasswordTags) {
+								executeSentence(properties, s, systemObject, null);
+							}
+						}
+						postUpdate(soffidObject, systemObject, existingObject);
+					}
 				}
 			}
+		} finally {
+			releaseConnection();
 		}
 	}
 
 	public boolean validateUserPassword(String accountName, Password password)
 			throws RemoteException, InternalErrorException {
-		Account acc = new Account();
-		acc.setName(accountName);
-		acc.setDispatcher(getCodi());
-		ExtensibleObject soffidObject = new UserExtensibleObject(acc, null,
-				getServer());
+		getConnection();
+		try {
+			Account acc = new Account();
+			acc.setName(accountName);
+			acc.setDispatcher(getCodi());
+			ExtensibleObject soffidObject = new UserExtensibleObject(acc, null, getServer());
 
-		soffidObject.put("password", getHashPassword(password));
+			soffidObject.put("password", getHashPassword(password));
 
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_ACCOUNT)
-					|| objectMapping.getSoffidObject().equals(
-							SoffidObjectType.OBJECT_USER)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping, true);
-				Map<String, String> properties = objectTranslator
-						.getObjectProperties(systemObject);
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT)
+						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER)) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping, true);
+					Map<String, String> properties = objectTranslator.getObjectProperties(systemObject);
 
-				LinkedList<String> updatePasswordTags = getTags(properties,
-						"validatePassword");
-				for (String s : updatePasswordTags) {
-					try {
-						String filter = properties.get(s + PARSE);
-						List<String[]> r = executeSentence(properties, s,
-								systemObject, null);
-						if (filter == null || !r.isEmpty())
-							return true;
-						if (properties.get(s+SUCCESS) != null)
-							return true;
-					} catch (InternalErrorException e) {
-						log.info("Unable to authenticate password for user "
-								+ accountName, e);
+					LinkedList<String> updatePasswordTags = getTags(properties, "validatePassword");
+					for (String s : updatePasswordTags) {
+						try {
+							String filter = properties.get(s + PARSE);
+							List<String[]> r = executeSentence(properties, s, systemObject, null);
+							if (filter == null || !r.isEmpty())
+								return true;
+							if (properties.get(s + SUCCESS) != null)
+								return true;
+						} catch (InternalErrorException e) {
+							log.info("Unable to authenticate password for user " + accountName, e);
+						}
 					}
 				}
 			}
+			return false;
+		} finally {
+			releaseConnection();
 		}
-		return false;
 	}
 
 	void debugObject(String msg, Map<String, Object> obj, String indent) {
@@ -1469,46 +1359,34 @@ public abstract class AbstractShellAgent extends Agent {
 					log.info(indent + attribute.toString() + ": null");
 				} else if (subObj instanceof Map) {
 					log.info(indent + attribute.toString() + ": Object {");
-					debugObject(null, (Map<String, Object>) subObj, indent
-							+ "   ");
+					debugObject(null, (Map<String, Object>) subObj, indent + "   ");
 					log.info(indent + "}");
 				} else {
-					log.info(indent + attribute.toString() + ": "
-							+ stringify(subObj.toString()));
+					log.info(indent + attribute.toString() + ": " + stringify(subObj.toString()));
 				}
 			}
 		}
 	}
 
-	
-	protected boolean runTrigger (SoffidObjectTrigger triggerType,
-			ExtensibleObject soffidObject,
-			ExtensibleObject newObject,
-			ExtensibleObject existingObject) throws InternalErrorException
-	{
+	protected boolean runTrigger(SoffidObjectTrigger triggerType, ExtensibleObject soffidObject,
+			ExtensibleObject newObject, ExtensibleObject existingObject) throws InternalErrorException {
 		SoffidObjectType sot = SoffidObjectType.fromString(soffidObject.getObjectType());
-		for ( ExtensibleObjectMapping eom : objectTranslator.getObjectsBySoffidType(sot))
-		{
-			if (newObject == null || newObject.getObjectType().equals(eom.getSystemObject()))
-			{
-				for ( ObjectMappingTrigger trigger: eom.getTriggers())
-				{
-					if (trigger.getTrigger().equals (triggerType))
-					{
+		for (ExtensibleObjectMapping eom : objectTranslator.getObjectsBySoffidType(sot)) {
+			if (newObject == null || newObject.getObjectType().equals(eom.getSystemObject())) {
+				for (ObjectMappingTrigger trigger : eom.getTriggers()) {
+					if (trigger.getTrigger().equals(triggerType)) {
 						ExtensibleObject eo = new ExtensibleObject();
 						eo.setAttribute("source", soffidObject);
 						eo.setAttribute("newObject", newObject);
 						eo.setAttribute("oldObject", existingObject);
-						if ( ! objectTranslator.evalExpression(eo, trigger.getScript()) )
-						{
-							log.info("Trigger "+triggerType+" returned false");
-							if (debugEnabled)
-							{
+						if (!objectTranslator.evalExpression(eo, trigger.getScript())) {
+							log.info("Trigger " + triggerType + " returned false");
+							if (debugEnabled) {
 								if (existingObject != null)
 									debugObject("old object", existingObject, "  ");
 								if (newObject != null)
 									debugObject("new object", newObject, "  ");
-							} 
+							}
 							return false;
 						}
 					}
@@ -1516,61 +1394,64 @@ public abstract class AbstractShellAgent extends Agent {
 			}
 		}
 		return true;
-		
+
 	}
 
-	protected boolean preUpdate(ExtensibleObject soffidObject,
-			ExtensibleObject adObject, ExtensibleObject currentEntry)
+	protected boolean preUpdate(ExtensibleObject soffidObject, ExtensibleObject adObject, ExtensibleObject currentEntry)
 			throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.PRE_UPDATE, soffidObject, adObject, currentEntry);
 	}
 
-	protected boolean preInsert(ExtensibleObject soffidObject,
-			ExtensibleObject adObject) throws InternalErrorException {
+	protected boolean preInsert(ExtensibleObject soffidObject, ExtensibleObject adObject)
+			throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.PRE_INSERT, soffidObject, adObject, null);
 	}
 
-	protected boolean preDelete(ExtensibleObject soffidObject,
-			ExtensibleObject currentEntry) throws InternalErrorException {
+	protected boolean preDelete(ExtensibleObject soffidObject, ExtensibleObject currentEntry)
+			throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.PRE_DELETE, soffidObject, null, currentEntry);
 	}
 
-	protected boolean postUpdate(ExtensibleObject soffidObject,
-			ExtensibleObject adObject, ExtensibleObject currentEntry)
-			throws InternalErrorException {
+	protected boolean postUpdate(ExtensibleObject soffidObject, ExtensibleObject adObject,
+			ExtensibleObject currentEntry) throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.POST_UPDATE, soffidObject, adObject, currentEntry);
 	}
 
-	protected boolean postInsert(ExtensibleObject soffidObject,
-			ExtensibleObject adObject, ExtensibleObject currentEntry)
-			throws InternalErrorException {
+	protected boolean postInsert(ExtensibleObject soffidObject, ExtensibleObject adObject,
+			ExtensibleObject currentEntry) throws InternalErrorException {
 		return runTrigger(SoffidObjectTrigger.POST_INSERT, soffidObject, adObject, currentEntry);
 	}
 
-	protected boolean postDelete(ExtensibleObject soffidObject,
-			ExtensibleObject currentEntry) throws InternalErrorException {
-		return runTrigger(SoffidObjectTrigger.POST_DELETE, soffidObject,  null, currentEntry);
+	protected boolean postDelete(ExtensibleObject soffidObject, ExtensibleObject currentEntry)
+			throws InternalErrorException {
+		return runTrigger(SoffidObjectTrigger.POST_DELETE, soffidObject, null, currentEntry);
 	}
 
 	public void removeListAlias(String nomLlista, String domini) throws InternalErrorException {
-		if (debugEnabled) log.info(">>> removeList: "+nomLlista+"@"+domini);
-		LlistaCorreu l = new LlistaCorreu();
-		l.setDescripcio(nomLlista+"@"+domini);
-		l.setNom(nomLlista);
-		l.setCodiDomini(domini);
-		l.setExplodedUsersList("");
-		l.setGroupMembers("");
-		l.setLlistaExterns("");
-		l.setLlistaLlistes("");
-		l.setLlistaLlistesOnPertany("");
-		l.setLlistaUsuaris("");
-		l.setRoleMembers("");
-		ExtensibleObject soffidObject = new MailListExtensibleObject(l, getServer());
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_MAIL_LIST)) {
-				ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
-				delete(sqlobject, objectMapping.getProperties(), soffidObject);
+		getConnection();
+		try {
+			if (debugEnabled)
+				log.info(">>> removeList: " + nomLlista + "@" + domini);
+			LlistaCorreu l = new LlistaCorreu();
+			l.setDescripcio(nomLlista + "@" + domini);
+			l.setNom(nomLlista);
+			l.setCodiDomini(domini);
+			l.setExplodedUsersList("");
+			l.setGroupMembers("");
+			l.setLlistaExterns("");
+			l.setLlistaLlistes("");
+			l.setLlistaLlistesOnPertany("");
+			l.setLlistaUsuaris("");
+			l.setRoleMembers("");
+			ExtensibleObject soffidObject = new MailListExtensibleObject(l, getServer());
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_MAIL_LIST)) {
+					ExtensibleObject sqlobject = objectTranslator.generateObject(soffidObject, objectMapping);
+					delete(sqlobject, objectMapping.getProperties(), soffidObject);
+				}
 			}
+		} finally {
+			releaseConnection();
 		}
 	}
 
@@ -1578,16 +1459,19 @@ public abstract class AbstractShellAgent extends Agent {
 	}
 
 	public void updateListAlias(LlistaCorreu llista) throws InternalErrorException {
-		ExtensibleObject soffidObject = new MailListExtensibleObject(llista, getServer());
+		getConnection();
+		try {
+			ExtensibleObject soffidObject = new MailListExtensibleObject(llista, getServer());
 
-		// First update role
-		for (ExtensibleObjectMapping objectMapping : objectMappings) {
-			if (objectMapping.getSoffidObject().equals(
-					SoffidObjectType.OBJECT_MAIL_LIST)) {
-				ExtensibleObject systemObject = objectTranslator
-						.generateObject(soffidObject, objectMapping);
-				updateObject(systemObject, soffidObject);
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_MAIL_LIST)) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					updateObject(systemObject, soffidObject);
+				}
 			}
+		} finally {
+			releaseConnection();
 		}
 	}
 
@@ -1596,20 +1480,17 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2)
 			throws RemoteException, InternalErrorException {
+		getConnection();
 		try {
 			ExtensibleObject sourceObject = getExtensibleObject(type, object1, object2);
 			for (ExtensibleObjectMapping map : objectMappings) {
-				if (map.appliesToSoffidObject(sourceObject))
-				{
+				if (map.appliesToSoffidObject(sourceObject)) {
 					ExtensibleObject translatedSample = objectTranslator.generateObject(sourceObject, map);
-					for (String tag: map.getProperties().keySet()) 
-					{
-						if (tag.startsWith("check"))
-						{
+					for (String tag : map.getProperties().keySet()) {
+						if (tag.startsWith("check")) {
 							ExtensibleObject obj = new ExtensibleObject();
 							obj.setObjectType(map.getSystemObject());
-							if (exists ( translatedSample, map.getProperties(), obj ))
-							{
+							if (exists(translatedSample, map.getProperties(), obj)) {
 								debugObject("Got system object", obj, "");
 								return obj;
 							}
@@ -1625,24 +1506,21 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2)
 			throws RemoteException, InternalErrorException {
+		getConnection();
 		try {
 			ExtensibleObject sourceObject = getExtensibleObject(type, object1, object2);
 			for (ExtensibleObjectMapping map : objectMappings) {
-				if (map.appliesToSoffidObject(sourceObject))
-				{
+				if (map.appliesToSoffidObject(sourceObject)) {
 					ExtensibleObject translatedSample = objectTranslator.generateObject(sourceObject, map);
-					for (String tag: map.getProperties().keySet()) 
-					{
-						if (tag.startsWith("select") && ! tag.startsWith("selectAll"))
-						{
+					for (String tag : map.getProperties().keySet()) {
+						if (tag.startsWith("select") && !tag.startsWith("selectAll")) {
 							ExtensibleObject obj = new ExtensibleObject();
 							obj.setObjectType(map.getSystemObject());
-							if (exists ( translatedSample, map.getProperties(), obj ))
-							{
+							if (exists(translatedSample, map.getProperties(), obj)) {
 								debugObject("Got system object", obj, "");
 								ExtensibleObject soffidObj = objectTranslator.parseInputObject(obj, map);
 								debugObject("Translated soffid object", soffidObj, "");
-							
+
 								return soffidObj;
 							}
 						}
@@ -1655,16 +1533,28 @@ public abstract class AbstractShellAgent extends Agent {
 		}
 	}
 
-	public Collection<Map<String, Object>> invoke(String verb, String command,
-			Map<String, Object> params) throws RemoteException, InternalErrorException 
-	{
-		log.info("Invoking "+command);
-		debugEnabled = true;
-		return objectTranslator.getObjectFinder().invoke(verb, command, params);
+	public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
+			throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			log.info("Invoking " + command);
+			debugEnabled = true;
+			return objectTranslator.getObjectFinder().invoke(verb, command, params);
+		} finally {
+			releaseConnection();
+		}
 	}
 
-	public boolean supportsRename () {
+	public boolean supportsRename() {
 		return true;
+	}
+
+	public void getConnection() throws InternalErrorException {
+
+	}
+
+	public void releaseConnection() throws InternalErrorException {
+
 	}
 
 }

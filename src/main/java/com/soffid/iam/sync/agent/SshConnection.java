@@ -136,8 +136,22 @@ public class SshConnection {
 	
 	public void close ()
 	{
-		if (channel != null)
+		if (channel != null) {
 			channel.disconnect();
+			try {
+				channel.getOutputStream().close();
+			} catch (IOException e) {
+			}
+			try {
+				channel.getInputStream().close();
+			} catch (IOException e) {
+			}
+			if (channel instanceof ChannelExec)
+				try {
+					((ChannelExec) channel).getErrStream().close();
+				} catch (IOException e) {
+				}
+		}
 		if (session != null)
 			session.disconnect();
 		

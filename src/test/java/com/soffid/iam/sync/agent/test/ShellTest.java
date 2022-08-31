@@ -89,7 +89,7 @@ public class ShellTest extends TestCase {
 		if (p != null)
 		{
 			dumpThreads();
-			SshConnection t = new SshConnection("forge.dev.lab", "bbuades", "/home/gbuades/.ssh/id_dsa", p, "pwd");
+			SshConnection t = new SshConnection("forge.dev.lab", "bbuades", "/home/gbuades/.ssh/id_rsa", p, "pwd");
 			t.close();
 			dumpThreads();
 		}

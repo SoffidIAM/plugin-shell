@@ -86,33 +86,39 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 		} catch (IOException e) {
 			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		}
+		InputStream in = null;
+		InputStream error = null;
 		try {
-			final InputStream in = tunnel.getInputStream();
-			final InputStream error = tunnel.getErrorStream();
+			in = tunnel.getInputStream();
+			error = tunnel.getErrorStream();
 			final OutputStream out = tunnel.getOutputStream();
 			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			final ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream();
 			
-			for (int i  = in.read(); i >= 0; i = in.read())
-			{
-				outputBuffer.write(i);
-				buffer.write(i);
-			}
+			InputStreamConsumer ic = new InputStreamConsumer(in, buffer, outputBuffer); ic.start();
+			InputStreamConsumer ec = new InputStreamConsumer(error, buffer, null); ec.start();
 			out.close();
-			error.close();
 			if (tunnel.getExitStatus() != 0)
 			{
-				for (int read = error.read(); read >= 0; read = error.read()) {
-					buffer.write(read);
-				}
+				ic.end();
+				ec.end();
 				throw new InternalErrorException("SSH command returned "+tunnel.getExitStatus()+"\n"+
 						buffer.toString(charSet));
 			}
-			tunnel.getOutputStream().close();
-			return buffer.toString(charSet);
+			return outputBuffer.toString(charSet);
 		} catch (IOException e) {
 			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 		} finally {
+			if (in != null)
+				try {
+					in.close();
+				} catch (IOException e1) {
+				}
+			if (error != null)
+				try {
+					error.close();
+				} catch (IOException e) {
+				}
 			tunnel.close();
 		}
 	}

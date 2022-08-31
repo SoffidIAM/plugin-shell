@@ -65,11 +65,11 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			charSet = "UTF-8";
 		
 		boolean debugEnabled = "true".equals(getSystem().getParam7());
-		if (debugEnabled) setDebug(true);
+		if (debugEnabled || true) setDebug(true);
 		
 		onlyPassword = "true".equals(getSystem().getParam4());
 		
-		if ("root".equals(user)) {
+		if (! "root".equals(user)) {
 			sudoprefix = "sudo -S -p "+quote(SUDO_PROMPT)+" "; 
 		} else {
 			sudoprefix = "";
@@ -103,11 +103,6 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			final OutputStream out = tunnel.getOutputStream();
 			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			final ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream();
-			new Thread( new Runnable() {
-				public void run() {
-					sendPassword(error, out, buffer);
-				} }); 
-			
 			if (inputData != null && inputData.length() > 0)
 			{
 				try {
@@ -116,18 +111,16 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 				out.write(inputData.getBytes(charSet));
 				out.close();
 			}
-			
-			for (int i  = in.read(); i >= 0; i = in.read())
+			InputStreamConsumer ic = new InputStreamConsumer(in, buffer, outputBuffer); ic.start();
+			InputStreamConsumerPassword ec = new InputStreamConsumerPassword(error, out, buffer, charSet, SUDO_PROMPT, password); ec.start();
+			final int exitStatus = tunnel.getExitStatus();
+			ic.end();
+			ec.end();
+			if (exitStatus != 0)
 			{
-				outputBuffer.write(i);
-				buffer.write(i);
+				throw new ExecutionException(exitStatus, buffer.toString(charSet));
 			}
 			out.close();
-			error.close();
-			if (tunnel.getExitStatus() != 0)
-			{
-				throw new ExecutionException(tunnel.getExitStatus(), buffer.toString(charSet));
-			}
 			return outputBuffer.toString(charSet);
 		} catch (IOException e) {
 			tunnel.close();

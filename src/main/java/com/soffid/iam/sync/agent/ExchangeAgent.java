@@ -9,6 +9,9 @@ import java.rmi.RemoteException;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
+import com.soffid.iam.sync.agent.shell.ExchangeTunnelPool;
+import com.soffid.iam.sync.agent.shell.PowerShellTunnelPool;
+
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -34,9 +37,9 @@ public class ExchangeAgent extends PowerShellAgent {
 
 	@Override
 	public void init() throws InternalErrorException {
-		count ++;
-		if (count > 50)
-			restart();
+//		count ++;
+//		if (count > 50)
+//			restart();
 		log.info("Starting Exchange Agent agent on {}: {}", getDispatcher().getCodi(),
 				count);
 //		exchangeServer = getDispatcher().getParam6();
@@ -74,73 +77,28 @@ public class ExchangeAgent extends PowerShellAgent {
 		super.init();
 	}
 
-	protected void initTunnel() throws InternalErrorException {
-		if (shellTunnel != null)
-			shellTunnel.closeShell();
-		shellTunnel = new ShellTunnel(shell, persistentShell, prompt+"\r\n");
-		shellTunnel.setDebug(debugEnabled);
-		shellTunnel.setLog (log);
-		shellTunnel.setEncoding("CP850");
-		shellTunnel.setTimeout( TIMEOUT * 60 * 1000); //30 mins max idle time for a power shell
-		shellTunnel.setRestartWord("watson");
-		String loadScript = exchangeDir != null  && !exchangeDir.trim().isEmpty() ? ". '"+exchangeDir+"';" : "";
-		try {
-			InputStream in ;
-			
-			if (pscFile != null)
-			{
-				if ("2010".equals(version))
-				{
-					File dir = new File(pscFile).getParentFile();
-					File ps1 = new File(dir, "RemoteExchange.ps1");
-					if (ps1.canRead())
-					{
-						shellTunnel.execute(loadScript+
-								". \""+ps1.getPath()+"\";");
-						shellTunnel.execute(
-								"Connect-ExchangeServer -auto;");
-						
-					}
-				}
-			}
-			else if (user == null || user.trim().isEmpty())
-			{
-				shellTunnel.execute("$User = \""+user+"\" ;"+
-						"$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://"+
-								hostName+"/PowerShell/ -Authentication Kerberos;" +
-						"Import-PSSession $Session; "+
-						loadScript);
-
-			}
-			else 
-			{
-				shellTunnel.execute("$User = \""+user+"\" ;"+
-					"$PWord = ConvertTo-SecureString -String \""+password.getPassword()+"\" -AsPlainText -Force;"+
-					"$C = New-Object -TypeName \"System.Management.Automation.PSCredential\" -ArgumentList $User, $PWord;"+
-					"$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://"+
-							hostName+"/PowerShell/ -Authentication Kerberos -Credential $C;" +
-					"Import-PSSession $Session; "+
-					loadScript);
-			}
-			
-			if ( startupScript != null && ! startupScript.trim().isEmpty())
-				shellTunnel.execute(startupScript);
-			in = shellTunnel.execute(
-					"echo \""+prompt+"\"");
-			int b;
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			while ((b = in.read()) >= 0) {
-				out.write(b);
-//				System.out.write (b);
-			}
-			if (out.toString().contains("Windows PowerShell terminated"))
-			{
-				restart();
-			}
-			shellTunnel.idle();
-		} catch (IOException e) {
-			System.exit(1);
-			throw new InternalErrorException ("Unable to open power shell", e);
+	protected void initPool() throws InternalErrorException {
+		final String poolName = getTunnelPoolName();
+		PowerShellTunnelPool p = pools.get(poolName);
+		if (p == null) {
+			ExchangeTunnelPool pool = new ExchangeTunnelPool();
+			pool.setShell(shell);
+			pool.setPersistentShell(persistentShell);
+			pool.setPrompt(prompt);
+			pool.setDebugEnabled(debugEnabled);
+			pool.setLog(log);
+			pool.setInitialCommand(initialCommand);
+			pool.setTimeout(TIMEOUT * 60  * 1000); //30 mins max idle time for a power shell
+			pool.setMaxUnusedTime(60 * 60 * 1000); // 1 hour not used timeout
+			pool.setRestartWord("watson");
+			pool.setExchangeDir(exchangeDir);
+			pool.setPscFile(pscFile);
+			pool.setVersion(version);
+			pool.setUser(user);
+			pool.setHostName(hostName);
+			pool.setPassword(password);
+			pool.setStartupScript(startupScript);
+			pools.put(poolName, pool);
 		}
 	}
 

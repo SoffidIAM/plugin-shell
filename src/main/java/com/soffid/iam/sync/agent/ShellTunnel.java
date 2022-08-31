@@ -59,9 +59,15 @@ public class ShellTunnel implements AbstractTunnel {
 	private String encoding;
 	private String restartWord;
 	private long expiration = 0;
+	private String name;
+	
+	public String toString() {
+		return "Tunnel "+ hashCode() +": "+name;
+	}
 	
 	public ExitOnPromptInputStream execute (String cmd) throws IOException
 	{
+		name = ("Executing "+cmd);
 		if (encoding == null)
 		{
 			setEncoding( Charset.defaultCharset().name() );

@@ -6,8 +6,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.security.MessageDigest;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -27,12 +29,11 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import com.soffid.iam.sync.agent.shell.ExitOnPromptInputStream;
+import com.soffid.iam.sync.agent.shell.PowerShellTunnelPool;
 
-import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
-import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
 import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
@@ -61,8 +62,8 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	String shell;
 
 	boolean persistentShell;
-	ShellTunnel shellTunnel;
-	static ShellTunnel freeTunnel = null;
+	// ShellTunnel shellTunnel;
+	static Map<String,PowerShellTunnelPool> pools = new HashMap<String, PowerShellTunnelPool>();
 	String xmlOutFile;
 	String prompt;
 	String initialCommand;
@@ -94,7 +95,14 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			throw new InternalErrorException ("Error configuring PowerShell agent", e1);
 		}
 		
-		prompt = "----soffid----prompt-"+hashCode()+"----";
+		try {
+			String s = encodeHex(MessageDigest.getInstance("SHA-1").digest(getCodi().getBytes(StandardCharsets.UTF_8)));
+			prompt = "----soffid----prompt-"+s+"----";
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new InternalErrorException(
+					"Unable to use SHA-1 encryption algorithm ", e);
+		}
+		
 		
 		log.info("Prompt: "+prompt);
 		hashType = null;
@@ -106,69 +114,53 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			log.info ("Enabled DEBUG mode");
 			
 
-		synchronized (lock) {
-			if (freeTunnel != null && freeTunnel.isClosed())
-				freeTunnel = null;
-			
-			if (freeTunnel == null)
-				initTunnel();
-			else {
-				shellTunnel = freeTunnel;
-				freeTunnel = null;
-			}
-		}
+		initPool();
+		
 		try {
 			if (hashType != null && hashType.length() > 0)
 				digest = MessageDigest.getInstance(hashType);
 		} catch (java.security.NoSuchAlgorithmException e) {
 			throw new InternalErrorException(
-					"Unable to use SHA encryption algorithm ", e);
+					"Unable to use "+hashType+" encryption algorithm ", e);
 		}
 	}
 
 	
-	public void close () {
-		synchronized(lock) {
-//			if (!shellTunnel.isClosed()) {
-//				if (freeTunnel != null) {
-//					freeTunnel.closeShell();
-//				}
-//				freeTunnel = shellTunnel;
-//			}
-			shellTunnel.closeShell();
+	final static char[] HEX = "0123456789ABCDEF".toCharArray(); 
+	private String encodeHex(byte[] digest) {
+		StringBuffer sb = new StringBuffer();
+		for (int i = 0; i < digest.length; i++) {
+			byte b = digest[i];
+			sb.append(HEX[(b >> 8) & 0x0f]);
+			sb.append(HEX[b & 0x0f]);
 		}
+		return sb.toString();
+	}
+
+	public void close () {
 		super.close();
 	}
 
 
-	protected void initTunnel() throws InternalErrorException {
-		if (shellTunnel != null)
-			shellTunnel.closeShell();
-		shellTunnel = new ShellTunnel(shell, persistentShell, prompt+"\r\n");
-		shellTunnel.setDebug(debugEnabled);
-		shellTunnel.setLog (log);
-		shellTunnel.setEncoding("CP850");
-		shellTunnel.setTimeout(30 * 60 * 1000); //30 mins max idle time for a power shell 
-		shellTunnel.setMaxDuration( 2 * 60 * 60 * 1000);
-		shellTunnel.idle();
-		try {
-			log.info("Initializing shell");
-			if (initialCommand != null &&
-					!initialCommand.trim().isEmpty())
-				shellTunnel.execute(initialCommand + "\n");
-			InputStream in = shellTunnel.execute("function prompt{\"\"};  echo \""+prompt+"\"\r\n");
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			int b;
-			while ((b = in.read()) >= 0) {
-				System.out.write (b);
-				out.write(b);
-			}
-			shellTunnel.idle();
-		} catch (IOException e) {
-			System.exit(1);
-			throw new InternalErrorException ("Unable to open power shell");
-			
+	protected void initPool() throws InternalErrorException {
+		final String poolName = getTunnelPoolName();
+		PowerShellTunnelPool pool = pools.get(poolName);
+		if (pool == null) {
+			pool = new PowerShellTunnelPool();
+			pool.setShell(shell);
+			pool.setPersistentShell(persistentShell);
+			pool.setPrompt(prompt);
+			pool.setDebugEnabled(debugEnabled);
+			pool.setLog(log);
+			pool.setInitialCommand(initialCommand);
+			pool.setTimeout(30 * 60  * 1000); //30 mins max idle time for a power shell
+			pool.setMaxUnusedTime(60 * 60 * 1000); // 1 hour not used timeout
+			pools.put(poolName, pool);
 		}
+	}
+
+	protected String getTunnelPoolName() {
+		return getCodi()+" "+shell+" "+initialCommand;
 	}
 
 	public void restart() {
@@ -189,79 +181,83 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	
 	@Override
 	protected String actualExecute(String parsedSentence) throws InternalErrorException {
-		boolean started = false;
 		if (debugEnabled)
 		{ 
 			log.info("Executing "+parsedSentence);
 		}
 		
-		if (shellTunnel == null || shellTunnel.isClosed())
-		{
-			shellTunnel = null;
-			initTunnel();
-			started = true;
-		}
-		
+		final String poolName = getTunnelPoolName();
+		PowerShellTunnelPool pool = pools.get(poolName);
+		ShellTunnel shellTunnel;
 		try {
-			File out = new File(xmlOutFile);
-			out.delete();
-			ExitOnPromptInputStream in;
+			shellTunnel = pool.getConnection();
+		} catch (Exception e2) {
+			throw new InternalErrorException("Error creating power shell", e2);
+		}
+		try {
 			try {
-				shellTunnel.idle();
-				in = shellTunnel.execute(parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \"\"; echo \""+prompt+"\";\r\n");
-			} catch (IOException e) {
-				shellTunnel.closeShell();
-				if (started)
-				{
-					log.warn("Tunnel is not working. Restarting", e);
-					try {
-						Thread.currentThread().sleep(1000);
-					} catch (InterruptedException e1) {
+				File out = new File(xmlOutFile);
+				out.delete();
+				ExitOnPromptInputStream in;
+				try {
+					shellTunnel.idle();
+					in = shellTunnel.execute(parsedSentence + "| Export-CliXML \""+xmlOutFile+"\" ; echo \"\"; echo \""+prompt+"\";\r\n");
+				} catch (IOException e) {
+					shellTunnel.closeShell();
+					if (false)
+					{
+						log.warn("Tunnel is not working. Restarting", e);
+						try {
+							Thread.currentThread().sleep(1000);
+						} catch (InterruptedException e1) {
+						}
+						System.exit(3);
 					}
-					System.exit(3);
+					throw e;
 				}
-				throw e;
-			}
-			// Consume input
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-			for (int i  = in.read(); i >= 0; i = in.read())
-			{
-				buffer.write(i);
-			}
-			shellTunnel.idle();
-			
-			if ((out.length() == 0 && buffer.size() > 0 ) || !out.canRead() || in.hasError())
-			{
-				if (buffer.toString().replaceAll("\\s", "").contains("ManagementObjectNotFoundException") &&
-						parsedSentence.trim().toLowerCase().startsWith("get-"))
-					return "";
+				// Consume input
+				ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+				for (int i  = in.read(); i >= 0; i = in.read())
+				{
+					buffer.write(i);
+				}
+				shellTunnel.idle();
+				
+				if ((out.length() == 0 && buffer.size() > 0 ) || !out.canRead() || in.hasError())
+				{
+					if (buffer.toString().replaceAll("\\s", "").contains("ManagementObjectNotFoundException") &&
+							parsedSentence.trim().toLowerCase().startsWith("get-"))
+						return "";
+					else
+						throw new InternalErrorException("Error executing remote command :"+buffer.toString());
+				}
+				
+				InputStream in2 = new FileInputStream(out);			// Consume xml file
+				buffer = new ByteArrayOutputStream();
+				for (int i  = in2.read(); i >= 0; i = in2.read())
+				{
+					buffer.write(i);
+				}
+				byte ba[] = buffer.toByteArray();
+				if (ba.length  >= 2 && ba[0] == -2 && ba[1] == -1)
+				{
+					return new String(ba, 2, ba.length - 2, "UTF-16BE");
+				}
+				else if (ba.length  >= 2 && ba[0] == -1 && ba[1] == -2)
+				{
+					return new String(ba, 2, ba.length - 2, "UTF-16LE");
+				}
 				else
-					throw new InternalErrorException("Error executing remote command :"+buffer.toString());
+				{
+	//				log.info("No header: " + ba[0] + " "+ ba[1]);
+					return buffer.toString();
+				}
+			} catch (IOException e) {
+				
+				throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 			}
-			
-			InputStream in2 = new FileInputStream(out);			// Consume xml file
-			buffer = new ByteArrayOutputStream();
-			for (int i  = in2.read(); i >= 0; i = in2.read())
-			{
-				buffer.write(i);
-			}
-			byte ba[] = buffer.toByteArray();
-			if (ba.length  >= 2 && ba[0] == -2 && ba[1] == -1)
-			{
-				return new String(ba, 2, ba.length - 2, "UTF-16BE");
-			}
-			else if (ba.length  >= 2 && ba[0] == -1 && ba[1] == -2)
-			{
-				return new String(ba, 2, ba.length - 2, "UTF-16LE");
-			}
-			else
-			{
-//				log.info("No header: " + ba[0] + " "+ ba[1]);
-				return buffer.toString();
-			}
-		} catch (IOException e) {
-			
-			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
+		} finally {
+			pool.returnConnection();
 		}
 	}
 	
@@ -405,6 +401,24 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 			}
 		}
 		populate(columnNames, row, fqn, sb.toString());
+	}
+
+	@Override
+	public void getConnection() throws InternalErrorException {
+		try {
+			pools.get(getTunnelPoolName()).getConnection();
+		} catch (Exception e) {
+			throw new InternalErrorException("Error creating shell", e);
+		}
+	}
+
+	@Override
+	public void releaseConnection() throws InternalErrorException {
+		try {
+			pools.get(getTunnelPoolName()).returnConnection();
+		} catch (Exception e) {
+			throw new InternalErrorException("Error creating shell", e);
+		}
 	}
 
 }
