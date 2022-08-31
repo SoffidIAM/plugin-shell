@@ -40,7 +40,7 @@
         </dependency>
 	</dependencies>
 	<scm>
-		<connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/plugin-ssh.git</connection>
+    <connection>scm:git:ssh://git@github.com/SoffidIAM/plugin-shell</connection>
 	  <tag>HEAD</tag>
   </scm>
 	<licenses>
@@ -77,12 +77,23 @@
 					</execution>
 				</executions>
 			</plugin>
+	    <plugin>
+	      <artifactId>maven-release-plugin</artifactId>
+	      <version>2.4.2</version>
+	      <dependencies>
+	        <dependency>
+	          <groupId>org.apache.maven.scm</groupId>
+	          <artifactId>maven-scm-provider-gitexe</artifactId>
+	          <version>1.8.1</version>
+	        </dependency>
+	       </dependencies>
+	      </plugin>
 		      <plugin>
 		        <artifactId>maven-compiler-plugin</artifactId>
 		        <version>3.1</version>
 	            <configuration>
-	              <source>1.6</source>
-	              <target>1.6</target>
+	              <source>1.8</source>
+	              <target>1.8</target>
 	              <encoding>UTF-8</encoding>
 	            </configuration>
 		      </plugin>
@@ -91,21 +102,17 @@
 	<pluginRepositories>
 		<pluginRepository>
 			<id>soffid-open</id>
-			<url>http://www.soffid.com/maven</url>
+			<url>https://download.soffid.com/maven</url>
 		</pluginRepository>
 	</pluginRepositories>
 	<repositories>
 		<repository>
 			<id>central</id>
-			<url>http://repo1.maven.org/maven2</url>
+			<url>https://repo1.maven.org/maven2</url>
 		</repository>
 		<repository>
 			<id>soffid-open</id>
-			<url>http://www.soffid.com/maven</url>
-		</repository>
-		<repository>
-			<id>jboss</id>
-			<url>https://repository.jboss.org/nexus/content/repositories/releases</url>
+			<url>https://download.soffid.com/maven</url>
 		</repository>
 	</repositories>
 	<distributionManagement>
