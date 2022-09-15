@@ -15,13 +15,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.jcraft.jsch.JSchException;
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
+import com.soffid.iam.api.DataType;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
+import com.soffid.iam.remote.RemoteServiceLocator;
+import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
@@ -29,6 +33,8 @@ import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.UserMgr;
 
 import es.caib.seycon.ng.comu.Password;
+import es.caib.seycon.ng.comu.TypeEnumeration;
+import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
 
 public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, ExtensibleObjectMgr {
@@ -73,6 +79,36 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			sudoprefix = "sudo -S -p "+quote(SUDO_PROMPT)+" "; 
 		} else {
 			sudoprefix = "";
+		}
+		try {
+			updateAccountsMetadata();
+		} catch (IOException e) {
+			throw new InternalErrorException("Error registering metadat", e);
+		}
+	}
+
+	private void updateAccountsMetadata() throws IOException, InternalErrorException {
+		AdditionalDataService ds = ! Config.getConfig().isServer() ? 
+			new RemoteServiceLocator().getAdditionalDataService() :
+			ServiceLocator.instance().getAdditionalDataService();
+		checkMetadata("rid", TypeEnumeration.NUMBER_TYPE, "Internal id", ds);
+		checkMetadata("gid", TypeEnumeration.NUMBER_TYPE, "Group id", ds);
+		checkMetadata("home", TypeEnumeration.STRING_TYPE, "Home directory", ds);
+		checkMetadata("shell", TypeEnumeration.STRING_TYPE, "Shell", ds);
+	}
+
+	private void checkMetadata(String name, TypeEnumeration type, String description, AdditionalDataService ds) throws InternalErrorException {
+		if (ds.findSystemDataType(getAgentName(), name) == null) {
+			DataType dt = new DataType();
+			dt.setBuiltin(Boolean.FALSE);
+			dt.setLabel(description);
+			dt.setName(name);
+			dt.setType(type);
+			dt.setMultiValued(false);
+			dt.setRequired(false);
+			dt.setUnique(false);
+			dt.setOrder( 1L + ds.findSystemDataTypes(getAgentName()).size() );
+			ds.create(dt);
 		}
 	}
 
