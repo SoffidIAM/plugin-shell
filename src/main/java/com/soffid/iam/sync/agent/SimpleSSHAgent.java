@@ -123,9 +123,17 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		}
 		
 		try {
-			if (tunnel == null || ! tunnel.isConnected())
-				tunnel = new SshConnection(this.server, user, keyFile, password, parsedSentence);
-			else
+			if (tunnel == null || ! tunnel.isConnected()) {
+				try {
+					tunnel = new SshConnection(this.server, user, keyFile, password, parsedSentence);
+				} catch (JSchException e) {
+					com.soffid.iam.api.Password p = getServer().getOrGenerateUserPassword(user, getAgentName());
+					if (p == null || p.getPassword().equals(password.getPassword()))
+						throw e;
+					password = new Password( p.getPassword() );
+					tunnel = new SshConnection(this.server, user, keyFile, password, parsedSentence);
+				}
+			} else
 				tunnel.exec(parsedSentence);
 		} catch (JSchException e) {
 			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
