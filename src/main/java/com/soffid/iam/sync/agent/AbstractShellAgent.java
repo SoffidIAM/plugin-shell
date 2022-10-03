@@ -31,6 +31,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.soffid.iam.api.AccountStatus;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.MailList;
 
 import es.caib.seycon.ng.comu.Account;
@@ -1436,13 +1437,12 @@ public abstract class AbstractShellAgent extends Agent {
 			l.setDescripcio(nomLlista + "@" + domini);
 			l.setNom(nomLlista);
 			l.setCodiDomini(domini);
-			l.setExplodedUsersList("");
-			l.setGroupMembers("");
-			l.setLlistaExterns("");
-			l.setLlistaLlistes("");
-			l.setLlistaLlistesOnPertany("");
-			l.setLlistaUsuaris("");
-			l.setRoleMembers("");
+			l.setExplodedUsersList(new LinkedList<String>());
+			l.setGroupMembers(new LinkedList<String>());
+			l.setLlistaExterns(new LinkedList<String>());
+			l.setLlistaLlistes(new LinkedList<String>());
+			l.setLlistaUsuaris(new LinkedList<String>());
+			l.setRoleMembers(new LinkedList<String>());
 			ExtensibleObject soffidObject = new MailListExtensibleObject(l, getServer());
 			for (ExtensibleObjectMapping objectMapping : objectMappings) {
 				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_MAIL_LIST)) {
@@ -1557,4 +1557,8 @@ public abstract class AbstractShellAgent extends Agent {
 
 	}
 
+
+	public List<HostService> getHostServices() throws RemoteException, InternalErrorException {
+		return null;
+	}
 }

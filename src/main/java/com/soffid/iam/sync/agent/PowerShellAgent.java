@@ -28,6 +28,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.sync.agent.shell.ExitOnPromptInputStream;
 import com.soffid.iam.sync.agent.shell.PowerShellTunnelPool;
 
