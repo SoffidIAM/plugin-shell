@@ -97,8 +97,10 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		checkMetadata("shell", TypeEnumeration.STRING_TYPE, "Shell", ds);
 	}
 
+	long minOrder = 1;
 	private void checkMetadata(String name, TypeEnumeration type, String description, AdditionalDataService ds) throws InternalErrorException {
 		if (ds.findSystemDataType(getAgentName(), name) == null) {
+			log.info("Creating "+name+" on "+getAgentName());
 			DataType dt = new DataType();
 			dt.setBuiltin(Boolean.FALSE);
 			dt.setLabel(description);
@@ -107,7 +109,13 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			dt.setMultiValued(false);
 			dt.setRequired(false);
 			dt.setUnique(false);
-			dt.setOrder( 1L + ds.findSystemDataTypes(getAgentName()).size() );
+			dt.setSystemName(getAgentName());
+			for (DataType dt2: ds.findSystemDataTypes2(getAgentName())) {
+				if (dt2.getOrder().longValue() >= minOrder)
+					minOrder = dt2.getOrder().longValue()+1;
+				log.info(">> "+dt2.getCode()+" "+dt2.getOrder()+" -> "+dt.getOrder());
+			}
+			dt.setOrder( minOrder ++ );
 			ds.create(dt);
 		}
 	}
