@@ -1232,9 +1232,9 @@ public abstract class AbstractShellAgent extends Agent {
 						user = (Usuari) i;
 					else {
 						try {
-							user = getServer().getUserInfo(i.toString(), getCodi());
+							user = getServer().getUserInfo(i.toString(), null);
 						} catch (UnknownUserException e) {
-							e.printStackTrace();
+//							e.printStackTrace();
 						}
 					}
 					break;

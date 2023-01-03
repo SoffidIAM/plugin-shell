@@ -116,7 +116,11 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 				log.info(">> "+dt2.getCode()+" "+dt2.getOrder()+" -> "+dt.getOrder());
 			}
 			dt.setOrder( minOrder ++ );
-			ds.create(dt);
+			try {
+				ds.create(dt);
+			} catch (Exception e) { // Ignore
+				
+			}
 		}
 	}
 

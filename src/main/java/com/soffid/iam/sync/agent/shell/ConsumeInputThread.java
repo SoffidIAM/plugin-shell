@@ -8,13 +8,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ConsumeInputThread extends ConsumeErrorThread {
-	private Pattern pattern = null;
 	private boolean promptFound;
+	private String prompt;
 	
 	public ConsumeInputThread(InputStream inputStream, String prompt, Object notifier, String encoding) {
 		super (inputStream, notifier, encoding);
-		if (prompt != null && prompt.length() > 0)
-			pattern = Pattern.compile(prompt);
+		this.prompt = prompt == null || prompt.trim().isEmpty() ? null: prompt;;
 		promptFound = false;
 	}
 
@@ -41,23 +40,19 @@ public class ConsumeInputThread extends ConsumeErrorThread {
 				}
 				// Append to buffer
 				bout.write(i);
-				if (pattern != null && in.available() == 0)
+				if (prompt != null)
 				{
-					Matcher m = pattern.matcher(bout.toString(encoding));
-					if (m.matches())
+					final String boutTxt = bout.toString(encoding);
+					int pos = boutTxt.indexOf(prompt);
+					if (pos >= 0)
 					{
-						this.sleep(100);
-						if (in.available() == 0)
-						{
-							// Prompt found
-							if (debug)
-								log.info ("[PROMPT-FOUND]");
-							promptFound = true;
-							int pos = m.start();
-							byte []buffer = Arrays.copyOfRange(bout.toByteArray(), 0, pos);
-							setLine(buffer);
-							bout.reset();
-						}
+						// Prompt found
+						if (debug)
+							log.info ("[PROMPT-FOUND]");
+						promptFound = true;
+						byte []buffer = boutTxt.substring(0, pos).getBytes(encoding);
+						setLine(buffer);
+						bout.reset();
 					} else if (debug) {
 //						log.info (bout.toString(encoding)+"<WAITING...>");
 					}
