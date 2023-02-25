@@ -4,9 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.rmi.RemoteException;
 
 import com.jcraft.jsch.JSchException;
+import com.soffid.iam.api.User;
 
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -41,6 +43,8 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 	String keyFile;
 	String charSet;
 	SshConnection tunnel = null;
+	private Password sudoPassword;
+	private String rootPrompt;
 	
 	public SSHAgent() throws RemoteException {
 	}
@@ -63,6 +67,10 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 			charSet = "UTF-8";
 		
 		debugEnabled = "true".equals(getDispatcher().getParam7());
+		
+		rootPrompt = getDispatcher().getParam8();
+		if (getDispatcher().getParam9() != null && !getDispatcher().getParam9().isEmpty())
+			sudoPassword = Password.decode(getDispatcher().getParam9());
 
 		super.init ();
 	}
@@ -88,26 +96,45 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 		}
 		InputStream in = null;
 		InputStream error = null;
+		InputStreamConsumerPassword ec1 = null;
+		InputStreamConsumer ec2 = null;
+		InputStreamConsumer ic = null;
+		final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 		try {
 			in = tunnel.getInputStream();
 			error = tunnel.getErrorStream();
 			final OutputStream out = tunnel.getOutputStream();
-			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			final ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream();
 			
-			InputStreamConsumer ic = new InputStreamConsumer(in, buffer, outputBuffer); ic.start();
-			InputStreamConsumer ec = new InputStreamConsumer(error, buffer, null); ec.start();
-			out.close();
+			ic = new InputStreamConsumer(in, buffer, outputBuffer); ic.start();
+			if ( sudoPassword != null && ! sudoPassword.getPassword().isEmpty() && 
+					rootPrompt != null && ! rootPrompt.isEmpty()) {
+				ec1 = new InputStreamConsumerPassword(error, out, buffer, charSet, rootPrompt, sudoPassword); ec1.start();
+			}
+			else {
+				ec2 = new InputStreamConsumer(error, buffer, null); ec2.start();
+				out.close();
+			}
 			if (tunnel.getExitStatus() != 0)
 			{
 				ic.end();
-				ec.end();
+				if (ec1 != null) ec1.end();
+				if (ec2 != null) ec2.end();
 				throw new InternalErrorException("SSH command returned "+tunnel.getExitStatus()+"\n"+
 						buffer.toString(charSet));
 			}
 			return outputBuffer.toString(charSet);
 		} catch (IOException e) {
-			throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
+			if (ic != null) ic.end();
+			if (ec1 != null) ec1.end();
+			if (ec2 != null) ec2.end();
+			try {
+				throw new InternalErrorException("Error executing remote command :"+e.getMessage()+
+						"\n"+buffer.toString(charSet), e);
+			} catch (UnsupportedEncodingException | InternalErrorException e1) {
+				throw new InternalErrorException("Error executing remote command :"+e.getMessage(),
+						e);
+			}
 		} finally {
 			if (in != null)
 				try {
@@ -122,5 +149,6 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 			tunnel.close();
 		}
 	}
+
 }
 	

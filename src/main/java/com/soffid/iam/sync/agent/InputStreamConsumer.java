@@ -4,6 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.slf4j.Logger;
+
 public class InputStreamConsumer extends Thread {
 
 	private InputStream in;
@@ -40,6 +42,11 @@ public class InputStreamConsumer extends Thread {
 		} catch (IOException e) {
 			
 		}
+	}
+
+	public void end(Logger log) {
+		end();
+		log.warn(buffer.toString());
 	}
 
 }

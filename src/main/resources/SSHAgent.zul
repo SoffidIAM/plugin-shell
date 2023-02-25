@@ -70,5 +70,15 @@
 				</listitem>
 			</listbox>
 		</row>
+		<row>
+			<input_etiqueta value="Sudo prompt" />
+			<input_dada bind="@param8" lectura="${!canModifyAgent}"
+					width_custom="98%" />
+		</row>
+		<row>
+			<input_etiqueta value="Sudo password" />
+			<input_password bind="@param9" lectura="${!canModifyAgent}"
+				width_custom="98%" />
+		</row>
 	</rows>
 </grid>

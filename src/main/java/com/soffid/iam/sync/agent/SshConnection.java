@@ -63,11 +63,13 @@ public class SshConnection {
 		
 		public HostKey[] getHostKey(String host, String type) {
 			List<HostKey> r = new LinkedList<HostKey>();
-			for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
-			{
-				HostKey h = iterator.next();
-				if (h.getHost().equals(host) && type.equals(h.getType()))
-					r.add(h);
+			synchronized (keys) {
+				for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
+				{
+					HostKey h = iterator.next();
+					if (h.getHost().equals(host) && type.equals(h.getType()))
+						r.add(h);
+				}
 			}
 			return r.toArray(new HostKey[r.size()]);
 		}

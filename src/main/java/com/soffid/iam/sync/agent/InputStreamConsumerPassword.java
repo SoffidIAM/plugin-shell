@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.slf4j.Logger;
+
 import es.caib.seycon.ng.comu.Password;
 
 public class InputStreamConsumerPassword extends Thread {
@@ -40,7 +42,7 @@ public class InputStreamConsumerPassword extends Thread {
 		try {
 			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			for (int read = in.read(); read >= 0; read = in.read()) {
-				buffer.write(read);
+				log.write(read);
 				if (read == '\n')
 					buffer = new ByteArrayOutputStream();
 				else {
@@ -55,6 +57,12 @@ public class InputStreamConsumerPassword extends Thread {
 			}
 		} catch (IOException e) {
 		}
+	}
+
+	public void end(Logger log2) {
+		end();
+		log2.warn(log.toString());
+		
 	}
 
 }
