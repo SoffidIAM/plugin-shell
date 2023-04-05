@@ -65,7 +65,7 @@
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>com.jcraft:jsch</include>
+									<include>com.github.mwiede:jsch</include>
 									<include>com.rapid7.client:dcerpc</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
