@@ -174,7 +174,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			ec.end();
 			if (exitStatus != 0)
 			{
-				throw new ExecutionException(exitStatus, buffer.toString(charSet));
+				throw new ExecutionException(exitStatus, outputBuffer.toString()+buffer.toString(charSet));
 			}
 			out.close();
 			return outputBuffer.toString(charSet);

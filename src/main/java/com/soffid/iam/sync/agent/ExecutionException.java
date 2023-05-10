@@ -4,7 +4,7 @@ public class ExecutionException extends Exception {
 	int status;
 	String errorMessage;
 	public ExecutionException(int status, String errorMessage) {
-		super();
+		super("Error "+status+": "+errorMessage);
 		this.status = status;
 		this.errorMessage = errorMessage;
 	}

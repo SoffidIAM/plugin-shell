@@ -139,6 +139,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 	}
 
 	public void close () {
+		new File(xmlOutFile).delete();
 		super.close();
 	}
 
@@ -195,9 +196,9 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 		} catch (Exception e2) {
 			throw new InternalErrorException("Error creating power shell", e2);
 		}
+		File out = new File(xmlOutFile);
 		try {
 			try {
-				File out = new File(xmlOutFile);
 				out.delete();
 				ExitOnPromptInputStream in;
 				try {
@@ -258,6 +259,7 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				throw new InternalErrorException("Error executing remote command :"+e.getMessage(), e);
 			}
 		} finally {
+			out.delete();
 			pool.returnConnection();
 		}
 	}
