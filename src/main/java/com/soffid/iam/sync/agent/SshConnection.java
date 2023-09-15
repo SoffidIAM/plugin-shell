@@ -67,7 +67,8 @@ public class SshConnection {
 				for (Iterator<HostKey> iterator = keys.iterator(); iterator.hasNext();)
 				{
 					HostKey h = iterator.next();
-					if (h.getHost().equals(host) && type.equals(h.getType()))
+					if (h != null && h.getHost() != null && h.getHost().equals(host) && 
+							(type == null || type.equals(h.getType())))
 						r.add(h);
 				}
 			}
@@ -210,10 +211,10 @@ public class SshConnection {
 		public boolean promptYesNo(String str) {
 			if (str.contains("WARNING"))
 			{
-				System.out.println ("Prompting yes/no: "+str+" NO");
+//				System.out.println ("Prompting yes/no: "+str+" NO");
 				return false;
 			} else {
-				System.out.println ("Prompting yes/no: "+str+" YES");
+//				System.out.println ("Prompting yes/no: "+str+" YES");
 				return true;
 			}
 		}
@@ -231,7 +232,7 @@ public class SshConnection {
 		}
 
 		public void showMessage(String message) {
-			System.out.println (message);
+//			System.out.println (message);
 		}
 	}
 

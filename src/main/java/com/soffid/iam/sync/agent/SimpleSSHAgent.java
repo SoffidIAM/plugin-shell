@@ -40,13 +40,13 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, ExtensibleObjectMgr {
 
 	private static final String SUDO_PROMPT = "TEgyFPvkiBHn+rdZwCCy9s7vjzxUllkKQBXRCbH2tj+E";
-	private String user;
-	private String keyFile;
-	private Password password;
-	private String server;
-	private String charSet;
+	protected String user;
+	protected String keyFile;
+	protected Password password;
+	protected String server;
+	protected String charSet;
 	SshConnection tunnel = null;
-	private boolean onlyPassword;
+	protected boolean onlyPassword;
 	private String sudoprefix;
 	
 	@Override
@@ -75,7 +75,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		
 		onlyPassword = "true".equals(getSystem().getParam4());
 		
-		if (! "root".equals(user)) {
+		if (useSudo()) {
 			sudoprefix = "sudo -S -p "+quote(SUDO_PROMPT)+" "; 
 		} else {
 			sudoprefix = "";
@@ -87,7 +87,11 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		}
 	}
 
-	private void updateAccountsMetadata() throws IOException, InternalErrorException {
+	protected boolean useSudo() {
+		return ! "root".equals(user);
+	}
+
+	protected void updateAccountsMetadata() throws IOException, InternalErrorException {
 		AdditionalDataService ds = ! Config.getConfig().isServer() ? 
 			new RemoteServiceLocator().getAdditionalDataService() :
 			ServiceLocator.instance().getAdditionalDataService();
@@ -98,7 +102,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	}
 
 	long minOrder = 1;
-	private void checkMetadata(String name, TypeEnumeration type, String description, AdditionalDataService ds) throws InternalErrorException {
+	protected void checkMetadata(String name, TypeEnumeration type, String description, AdditionalDataService ds) throws InternalErrorException {
 		if (ds.findSystemDataType(getAgentName(), name) == null) {
 			log.info("Creating "+name+" on "+getAgentName());
 			DataType dt = new DataType();
@@ -129,11 +133,6 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	}
 	
 	protected String execute(String parsedSentence, String inputData) throws ExecutionException, InternalErrorException {
-		if (isDebug())
-		{ 
-			log.info("Executing "+parsedSentence);
-		}
-		
 		try {
 			if (tunnel == null || ! tunnel.isConnected()) {
 				try {
@@ -159,6 +158,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			final OutputStream out = tunnel.getOutputStream();
 			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			final ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream();
+			InputStreamConsumerPassword ec = new InputStreamConsumerPassword(error, out, buffer, charSet, SUDO_PROMPT, password); ec.start();
 			if (inputData != null && inputData.length() > 0)
 			{
 				try {
@@ -168,7 +168,6 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 				out.close();
 			}
 			InputStreamConsumer ic = new InputStreamConsumer(in, buffer, outputBuffer); ic.start();
-			InputStreamConsumerPassword ec = new InputStreamConsumerPassword(error, out, buffer, charSet, SUDO_PROMPT, password); ec.start();
 			final int exitStatus = tunnel.getExitStatus();
 			ic.end();
 			ec.end();
@@ -285,10 +284,13 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	public void updateUserPassword(String userName, User userData, com.soffid.iam.api.Password password,
 			boolean mustchange) throws RemoteException, InternalErrorException {
 		try {
-			execute(sudoprefix+"chpasswd "+quote(userName),
+			if (isDebug()) {
+				log.info(userName+":"+password.getPassword()+"\n");
+			}
+			execute(sudoprefix+"/usr/sbin/chpasswd "+quote(userName),
 					userName+":"+password.getPassword()+"\n");
 		} catch (ExecutionException e) {
-			throw new InternalErrorException("Error executing command: "+e.getErrorMessage());
+			throw new InternalErrorException("Error executing command: "+e.toString());
 		}
 	}
 

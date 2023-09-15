@@ -234,11 +234,12 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 						throw new InternalErrorException("Error executing remote command :"+buffer.toString());
 				}
 				
-				InputStream in2 = new FileInputStream(out);			// Consume xml file
-				buffer = new ByteArrayOutputStream();
-				for (int i  = in2.read(); i >= 0; i = in2.read())
-				{
-					buffer.write(i);
+				try (InputStream in2 = new FileInputStream(out)) {			// Consume xml file
+					buffer = new ByteArrayOutputStream();
+					for (int i  = in2.read(); i >= 0; i = in2.read())
+					{
+						buffer.write(i);
+					}
 				}
 				byte ba[] = buffer.toByteArray();
 				if (ba.length  >= 2 && ba[0] == -2 && ba[1] == -1)
@@ -251,7 +252,6 @@ public class PowerShellAgent extends AbstractShellAgent implements ExtensibleObj
 				}
 				else
 				{
-	//				log.info("No header: " + ba[0] + " "+ ba[1]);
 					return buffer.toString();
 				}
 			} catch (IOException e) {

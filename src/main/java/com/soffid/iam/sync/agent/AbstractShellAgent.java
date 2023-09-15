@@ -259,12 +259,12 @@ public abstract class AbstractShellAgent extends Agent {
 			}
 
 			while (matcher.find()) {
-				if (debugEnabled)
-					log.info("Found on position " + matcher.start());
 				int count = matcher.groupCount();
 				String row[] = new String[count + 1];
 				for (int i = 0; i <= count; i++)
 					row[i] = matcher.group(i);
+				if (debugEnabled)
+					log.info("Found on position " + matcher.start() + ": " + matcher.group());
 				result.add(row);
 				if (columnNames != null) {
 					while (columnNames.size() < row.length) {
@@ -1265,7 +1265,8 @@ public abstract class AbstractShellAgent extends Agent {
 			throws RemoteException, InternalErrorException {
 		getConnection();
 		try {
-			log.info("Setting password for user " + accountName + " at " + getCodi() + " User: "
+			if (debugEnabled)
+				log.info("Setting password for user " + accountName + " at " + getCodi() + " User: "
 					+ (userData == null ? "null" : userData.getCodi()));
 			Account acc = getServer().getAccountInfo(accountName, getCodi());
 			ExtensibleObject soffidObject = userData == null ? new AccountExtensibleObject(acc, getServer())
@@ -1278,7 +1279,7 @@ public abstract class AbstractShellAgent extends Agent {
 			for (ExtensibleObjectMapping objectMapping : objectMappings) {
 				if (objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_ACCOUNT) && userData == null
 						|| objectMapping.getSoffidObject().equals(SoffidObjectType.OBJECT_USER) && userData != null) {
-					log.info("Setting password using mapping " + objectMapping.getSystemObject());
+					if (debugEnabled) log.info("Setting password using mapping " + objectMapping.getSystemObject());
 					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
 					Map<String, String> properties = objectTranslator.getObjectProperties(systemObject);
 
@@ -1537,8 +1538,7 @@ public abstract class AbstractShellAgent extends Agent {
 			throws RemoteException, InternalErrorException {
 		getConnection();
 		try {
-			log.info("Invoking " + command);
-			debugEnabled = true;
+			if (debugEnabled) log.info("Invoking " + command);
 			return objectTranslator.getObjectFinder().invoke(verb, command, params);
 		} finally {
 			releaseConnection();

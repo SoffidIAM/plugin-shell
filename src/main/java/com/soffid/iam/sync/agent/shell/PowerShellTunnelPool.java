@@ -2,11 +2,13 @@ package com.soffid.iam.sync.agent.shell;
 
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 import org.slf4j.Logger;
 
+import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.agent.ShellTunnel;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -28,6 +30,7 @@ public class PowerShellTunnelPool extends AbstractPool<ShellTunnel> {
 		tunnel.closeShell();
 	}
 
+	static int counter = 1;
 	@Override
 	protected ShellTunnel createConnection() throws Exception {
 		ShellTunnel shellTunnel = new ShellTunnel(shell, persistentShell, prompt+"\r\n");
@@ -41,9 +44,20 @@ public class PowerShellTunnelPool extends AbstractPool<ShellTunnel> {
 		shellTunnel.idle();
 		try {
 			log.info("Initializing shell");
+			int c;
+			synchronized (this) {
+				c = counter ++;
+			}
+			File tmpDir = new File( Config.getConfig().getHomeDir(), "tmp" );
+			tmpDir = new File(tmpDir, "s-"+c);
+			tmpDir.mkdirs();
+			shellTunnel.setLabel("s-"+counter);
+			shellTunnel.setTemp(tmpDir);
+			log.info("Temporary dir "+tmpDir.getAbsolutePath());
 			if (initialCommand != null &&
 					!initialCommand.trim().isEmpty())
 				shellTunnel.execute(initialCommand + "\n");
+			shellTunnel.execute("$env:TMP='"+tmpDir.getAbsolutePath()+"'");
 			InputStream in = shellTunnel.execute("function prompt{\"\"};  echo \""+prompt+"\"\r\n");
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			int b;

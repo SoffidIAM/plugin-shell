@@ -24,6 +24,7 @@ public class ShellTunnel implements AbstractTunnel {
 	String shell;
 	boolean persistent;
 	String prompt;
+	String label;
 	
 	private Long idleTimeout;
 	
@@ -60,6 +61,7 @@ public class ShellTunnel implements AbstractTunnel {
 	private String restartWord;
 	private long expiration = 0;
 	private String name;
+	private File tmpDir;
 	
 	public String toString() {
 		return "Tunnel "+ hashCode() +": "+name;
@@ -302,6 +304,17 @@ public class ShellTunnel implements AbstractTunnel {
 		errorThread.finish();
 		process = null;
 		closed = true;
+		if (tmpDir != null) {
+			recursiveRemove(tmpDir);
+		}
+	}
+
+	private void recursiveRemove(File tmpDir2) {
+		for (File f: tmpDir.listFiles()) {
+			if (!f.getName().equals(".") && ! f.getName().equals(".."))
+				recursiveRemove(f);
+		}
+		tmpDir2.delete();
 	}
 
 	public void setLog(Logger log) {
@@ -357,5 +370,25 @@ public class ShellTunnel implements AbstractTunnel {
 
 	public void setMaxDuration(long d) {
 		expiration  = System.currentTimeMillis() + d;
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
+
+	public void setTemp(File tmpDir) {
+		this.tmpDir = tmpDir;
+	}
+
+	public File getTmpDir() {
+		return tmpDir;
+	}
+
+	public void setTmpDir(File tmpDir) {
+		this.tmpDir = tmpDir;
 	}
 }
