@@ -107,8 +107,17 @@ public class CiscoSSHAgent extends SimpleSSHAgent  {
 	public void updateUserPassword(String userName, User userData, com.soffid.iam.api.Password password,
 			boolean mustchange) throws RemoteException, InternalErrorException {
 		try {
-			execute("chpasswd "+(userName),
-					userName+":"+password.getPassword()+"\n");
+			Account account = getServer().getAccountInfo(userName, getAgentName());
+			String privilege = (String) account.getAttributes().get("privilege");
+			if (privilege == null || privilege.trim().isEmpty())
+				privilege = "1";
+			executePersistent("config terminal\n"
+					+ "username "+account.getName()+
+					" privilege "+privilege+
+					" secret "+password.getPassword()+"\n"
+					+ "end\n"
+					+ "write\n", 
+					password.getPassword());
 		} catch (ExecutionException e) {
 			throw new InternalErrorException("Error executing command: "+e.getErrorMessage());
 		}
@@ -217,9 +226,6 @@ public class CiscoSSHAgent extends SimpleSSHAgent  {
 		Collection<Map<String, Object>> l = new LinkedList<Map<String, Object>>();
 		if (verb.equals("checkPassword"))
 		{
-			Map<String,Object> o = new HashMap<String, Object>();
-			l.add(o);
-			o.put("passwordStatus", true);
 		}
 		else if (verb.equals("invoke")) 
 		{
