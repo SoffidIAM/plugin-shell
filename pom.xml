@@ -10,7 +10,7 @@
 	<artifactId>shell-plugin</artifactId>
 	<packaging>jar</packaging>
 	<name>Shell plugin</name>
-	<version>1.4.6-SNAPSHOT</version>
+	<version>1.4.7-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
 			<groupId>com.soffid.iam.sync</groupId>
