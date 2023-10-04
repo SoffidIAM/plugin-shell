@@ -95,7 +95,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		AdditionalDataService ds = ! Config.getConfig().isServer() ? 
 			new RemoteServiceLocator().getAdditionalDataService() :
 			ServiceLocator.instance().getAdditionalDataService();
-		checkMetadata("rid", TypeEnumeration.NUMBER_TYPE, "Internal id", ds);
+		checkMetadata("uid", TypeEnumeration.NUMBER_TYPE, "Internal id", ds);
 		checkMetadata("gid", TypeEnumeration.NUMBER_TYPE, "Group id", ds);
 		checkMetadata("home", TypeEnumeration.STRING_TYPE, "Home directory", ds);
 		checkMetadata("shell", TypeEnumeration.STRING_TYPE, "Shell", ds);
