@@ -38,11 +38,6 @@
         	<version>4.12</version>
         	<scope>test</scope>
         </dependency>
-        <dependency>
-        	<groupId>com.rapid7.client</groupId>
-        	<artifactId>dcerpc</artifactId>
-        	<version>0.12.1-soffid-1</version>
-        </dependency>
 	</dependencies>
 	<scm>
     <connection>scm:git:ssh://git@github.com/SoffidIAM/plugin-shell</connection>
@@ -71,11 +66,8 @@
 							<artifactSet>
 								<includes>
 									<include>com.github.mwiede:jsch</include>
-									<include>com.rapid7.client:dcerpc</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
-									<include>com.hierynomus:smbj</include>
-									<include>net.engio:mbassador</include>
 								</includes>
 							</artifactSet>
 						</configuration>
