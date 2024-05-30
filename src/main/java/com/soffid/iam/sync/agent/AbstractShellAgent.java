@@ -1561,4 +1561,36 @@ public abstract class AbstractShellAgent extends Agent {
 	public List<HostService> getHostServices() throws RemoteException, InternalErrorException {
 		return null;
 	}
+	
+
+	public void removeExtensibleObject(ExtensibleObject soffidObject) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().toString().equals(soffidObject.getObjectType())) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					delete(systemObject, objectMapping.getProperties(), soffidObject);
+				}
+			}
+		} finally {
+			releaseConnection();
+		}
+	}
+
+	public void updateExtensibleObject(ExtensibleObject soffidObject) throws RemoteException, InternalErrorException {
+		getConnection();
+		try {
+			// First update role
+			for (ExtensibleObjectMapping objectMapping : objectMappings) {
+				if (objectMapping.getSoffidObject().toString().equals(soffidObject.getObjectType())) {
+					ExtensibleObject systemObject = objectTranslator.generateObject(soffidObject, objectMapping);
+					updateObject(systemObject, soffidObject);
+				}
+			}
+		} finally {
+			releaseConnection();
+		}
+	}
+
 }

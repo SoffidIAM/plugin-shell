@@ -73,6 +73,8 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 			sudoPassword = Password.decode(getDispatcher().getParam9());
 
 		super.init ();
+		
+		actualExecute("whoami");
 	}
 
 

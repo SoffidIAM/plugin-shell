@@ -1,19 +1,24 @@
 package com.soffid.iam.sync.agent;
 
 import com.jcraft.jsch.*;
+import com.soffid.iam.service.impl.SshKeyGenerator;
 
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.util.Base64;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil;
+import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.util.encoders.Base64Encoder;
+import org.bouncycastle.util.io.pem.PemObject;
 import org.slf4j.Logger;
 
 public class SshConnection {
@@ -101,8 +106,12 @@ public class SshConnection {
 		if ("true".equals(System.getProperty("soffid.ssh.debug")))
 			JSch.setLogger(new DebugLogger());
 		jsch = new JSch();
-		if (keyFile != null && keyFile.trim().length() > 0)
-			jsch.addIdentity(keyFile);
+		if (keyFile != null && keyFile.trim().length() > 0) {
+			if (keyFile.startsWith("-----BEGIN")) {
+				jsch.addIdentity("Key "+user, keyFile.getBytes(StandardCharsets.UTF_8), null, null);
+			} else
+				jsch.addIdentity(keyFile);
+		}
 		
 		String knownHosts = Config.getConfig().getHomeDir().getAbsolutePath()+File.separator+"conf"+File.separator+"known_hosts";
 		

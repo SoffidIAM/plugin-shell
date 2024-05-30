@@ -43,6 +43,10 @@ public class CiscoSSHAgent extends SimpleSSHAgent  {
 		super();
 	}
 
+	protected String getTestCommand() {
+		return "show run\n";
+	}
+
 	@Override
 	protected void updateAccountsMetadata() throws IOException, InternalErrorException {
 		AdditionalDataService ds = ! Config.getConfig().isServer() ? 

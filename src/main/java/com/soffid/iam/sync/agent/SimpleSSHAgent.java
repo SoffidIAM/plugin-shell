@@ -4,9 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,6 +50,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	SshConnection tunnel = null;
 	protected boolean onlyPassword;
 	private String sudoprefix;
+	private HashMap<String, String> extendedAttributes;
 	
 	@Override
 	public void finalize() {
@@ -70,6 +73,12 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		if (charSet == null || charSet.trim().length() == 0)
 			charSet = "UTF-8";
 		
+		parseExtendedAttributes();
+		String key = extendedAttributes.get("sshKey");
+		
+		if (key != null && !key.trim().isEmpty())
+			keyFile = key;
+		
 		boolean debugEnabled = "true".equals(getSystem().getParam7());
 		if (debugEnabled || true) setDebug(true);
 		
@@ -85,6 +94,43 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		} catch (IOException e) {
 			throw new InternalErrorException("Error registering metadat", e);
 		}
+		try {
+			execute(getTestCommand());
+		} catch (ExecutionException e) {
+			throw new InternalErrorException("Cannot stablish connection", e);
+		}
+	}
+
+	private void parseExtendedAttributes() {
+		extendedAttributes = new HashMap<>();
+		byte[] data = getSystem().getBlobParam();
+		if (data != null)
+		{
+			String t;
+			try {
+				t = new String ( data,"UTF-8");
+				Map m = new HashMap();
+				if (t != null)
+				{
+					for (String tag: t.split("&")) {
+						int i = tag.indexOf("=");
+						String attribute;
+						String v;
+						try {
+							attribute = i < 0 ? tag: java.net.URLDecoder.decode(tag.substring(0, i), "UTF-8");
+							v = i > 0 ? java.net.URLDecoder.decode(tag.substring(i+1), "UTF-8"): null;
+							extendedAttributes.put(attribute, v);
+						} catch (UnsupportedEncodingException e) {
+						}
+					}
+				}
+			} catch (UnsupportedEncodingException e1) {
+			} 
+		}
+	}
+
+	protected String getTestCommand() {
+		return "whoami";
 	}
 
 	protected boolean useSudo() {
@@ -514,5 +560,11 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			l.add(m);
 		}
 		return l;
+	}
+
+	public void removeExtensibleObject(ExtensibleObject soffidObject) throws RemoteException, InternalErrorException {
+	}
+
+	public void updateExtensibleObject(ExtensibleObject soffidObject) throws RemoteException, InternalErrorException {
 	}
 }

@@ -4,7 +4,74 @@
 <?component name="input_etiqueta" macro-uri="comu/input_etiqueta.zul"?>
 <?component name="input_password" macro-uri="comu/input_password.zul"?>
 
-<grid width="99%">
+<grid width="99%" id="configurationGrid">
+	<zscript><![CDATA[
+		String[] attributes = new String[] {
+				"sshKey",
+		};
+		void updateBlob () {
+			String t = "";
+			for ( String attribute: attributes)
+			{
+				Component item = configurationGrid.getFellow (attribute);
+				String v = null;
+				if (item instanceof Listbox)
+				{
+					if (item.getSelectedItem() != null)
+						v = item.getSelectedItem().getValue();
+				}
+				else
+					v = item.getValue();
+				if ( v != null && (!attribute.equals("sshKey") || !"** Concealed **".equals(v)))
+				{
+					if (!t.isEmpty()) t = t + "&";
+					t = t + 
+						java.net.URLEncoder.encode(attribute, "UTF-8") + "=" + 
+						java.net.URLEncoder.encode( v, "UTF-8");
+				}
+			}
+			es.caib.zkib.datasource.XPathUtils.setValue(configurationGrid,"blobParam", t.getBytes("UTF-8"));
+		}
+		void loadBlob () {
+		    try {
+				byte[] data = es.caib.zkib.datasource.XPathUtils.getValue(configurationGrid, "blobParam");
+				if (data != null)
+				{
+					String t = new String ( data,"UTF-8"); 
+					Map m = new HashMap();
+					if (t != null)
+					{
+						for (String tag: t.split("&")) {
+							int i = tag.indexOf("=");
+							String attribute = java.net.URLDecoder.decode(tag.substring(0, i), "UTF-8");
+							Component c = configurationGrid.getFellowIfAny (attribute);
+							if (c != null)
+							{
+								String v = i > 0 ? java.net.URLDecoder.decode(tag.substring(i+1), "UTF-8"): null;
+								if (c instanceof Listbox)
+								{
+									c.setSelectedItem(null);
+									for ( item: c.getItems()) {
+										if (item.getValue() != null && item.getValue().equals(v))
+											c.setSelectedItem ( item );
+									}
+								}
+								else if (v != null && !v.trim().isEmpty() && 
+										attribute.equals("sshKey"))
+									c.setValue ("** Concealed **");
+								else
+									c.setValue ( v );
+	
+							}
+						}
+					}
+				}
+		    } catch (Exception e) {
+		    	e.printStackTrace();
+		    }
+		}
+	]]>
+	</zscript>
 	<columns visible="false"><column width="14%"/><column/> </columns>
 	<rows>
 		<row>
@@ -15,11 +82,15 @@
 			</hbox>
 		</row>
 		<row>
-			<input_etiqueta value="Key file (optional)" />
+			<input_etiqueta value="SSH Key file (optional)" />
 			<hbox width="90%">
 				<input_dada bind="@param1" lectura="${!canModifyAgent}"
 					width_custom="98%" />
 			</hbox>
+		</row>
+		<row>
+			<input_etiqueta value="SSH key (optional)" />
+			<textbox id="sshKey" multiline="true" width="100%"/>
 		</row>
 		<row>
 			<input_etiqueta value="Password" />
