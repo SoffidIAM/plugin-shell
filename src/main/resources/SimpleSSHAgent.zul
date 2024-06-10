@@ -4,7 +4,7 @@
 <?component name="input_etiqueta" macro-uri="comu/input_etiqueta.zul"?>
 <?component name="input_password" macro-uri="comu/input_password.zul"?>
 
-<grid width="99%" id="configurationGrid">
+<grid width="99%" id="configurationGrid" onCreate="loadBlob()">
 	<zscript><![CDATA[
 		String[] attributes = new String[] {
 				"sshKey",
