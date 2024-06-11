@@ -67,7 +67,8 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 		log.info("Starting Simple SSH Agent agent on {}", getSystem().getName(), null);
 		user = getSystem().getParam0();
 		keyFile = getSystem().getParam1();
-		password = getSystem().getParam2() == null ? new Password(""): Password.decode(getSystem().getParam2());
+		password = getSystem().getParam2() == null || getSystem().getParam2().trim().isEmpty() ? 
+				new Password(""): Password.decode(getSystem().getParam2());
 		server = getSystem().getParam3();
 		charSet = getSystem().getParam6();
 		if (charSet == null || charSet.trim().length() == 0)
