@@ -33,6 +33,7 @@ import org.xml.sax.SAXException;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.MailList;
+import com.soffid.iam.api.PasswordValidation;
 
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.LlistaCorreu;
@@ -44,6 +45,7 @@ import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.agent.Agent;
@@ -1501,7 +1503,7 @@ public abstract class AbstractShellAgent extends Agent {
 			}
 			return null;
 		} catch (Exception e) {
-			throw new InternalErrorException("Error searching for LDAP object", e);
+			throw new InternalErrorException("Error searching for object", e);
 		}
 	}
 
@@ -1536,12 +1538,44 @@ public abstract class AbstractShellAgent extends Agent {
 
 	public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
 			throws RemoteException, InternalErrorException {
+		Collection<Map<String, Object>> l = new LinkedList<Map<String, Object>>();
 		getConnection();
-		try {
-			if (debugEnabled) log.info("Invoking " + command);
-			return objectTranslator.getObjectFinder().invoke(verb, command, params);
-		} finally {
-			releaseConnection();
+		if (verb.equals("add-group")) {
+			String user = (String) params.get("user");
+			String group = (String) params.get("group");
+			List<RolGrant> grants = getAccountGrants(user);
+			RolGrant rg = new RolGrant();
+			rg.setDispatcher(getCodi());
+			rg.setEnabled(true);
+			rg.setOwnerAccountName(user);
+			rg.setRolName(group);
+			grants.add(rg);
+			updateUserRoles(user, null, grants, grants);
+			return l;
+		}
+		else if (verb.equals("checkPassword"))
+		{
+			Map<String,Object> o = new HashMap<String, Object>();
+			l.add(o);
+			Account account = getServer().getAccountInfo(command, getCodi());
+			if (account == null)
+				o.put("passwordStatus", null);
+			else 
+			{
+				Password password = getServer().getAccountPassword(command, getCodi());
+				log.info("Checking password "+password.getPassword()+" for "+command);
+				o.put("passwordStatus", validateUserPassword(command, password) ? PasswordValidation.PASSWORD_GOOD : PasswordValidation.PASSWORD_WRONG );
+			}
+			return l;
+		}
+		else 
+		{
+			try {
+				if (debugEnabled) log.info("Invoking " + command);
+				return objectTranslator.getObjectFinder().invoke(verb, command, params);
+			} finally {
+				releaseConnection();
+			}
 		}
 	}
 
@@ -1591,6 +1625,28 @@ public abstract class AbstractShellAgent extends Agent {
 		} finally {
 			releaseConnection();
 		}
+	}
+
+	@Override
+	public ExtensibleObject getExtensibleObject(SoffidObjectType type, String object1, String object2)
+			throws InternalErrorException {
+		if (type == SoffidObjectType.OBJECT_MAIL_LIST)
+		{
+			LlistaCorreu user;
+			try {
+				user = getServer().getMailList(object1, object2);
+				return new MailListExtensibleObject(user, getServer());
+			} catch (UnknownMailListException e) {
+				ExtensibleObject eo = new ExtensibleObject();
+				eo.setObjectType(SoffidObjectType.OBJECT_MAIL_LIST.getValue());
+				eo.setAttribute("name", object1);
+				eo.setAttribute("domainName", object2);
+				eo.setAttribute("attributes", new HashMap<String, Object>());
+				return eo;
+			}
+		}
+		else
+			return super.getExtensibleObject(type, object1, object2);
 	}
 
 }
