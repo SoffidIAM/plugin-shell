@@ -565,9 +565,9 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			String group = (String) params.get("group");
 			if (user != null && group != null) {
 				try {
-					execute(sudoprefix+"usermod -a -G "+quote(group)+" "+quote(user));
+					execute(sudoprefix+"adduser "+quote(user)+" "+quote(group));
 				} catch (ExecutionException e) {
-					throw new InternalErrorException("Error granting group "+group+" to "+user);
+					throw new InternalErrorException("Error granting group "+group+" to "+user, e);
 				}
 			}
 		}
@@ -576,9 +576,9 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			String group = (String) params.get("group");
 			if (user != null && group != null) {
 				try {
-					execute(sudoprefix+"usermod -r -G "+quote(group)+" "+quote(user));
+					execute(sudoprefix+"deluser "+quote(user)+" "+quote(group));
 				} catch (ExecutionException e) {
-					throw new InternalErrorException("Error granting group "+group+" to "+user);
+					throw new InternalErrorException("Error granting group "+group+" to "+user, e);
 				}
 			}
 		}
