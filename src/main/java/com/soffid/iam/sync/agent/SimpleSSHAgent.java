@@ -541,7 +541,6 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			else 
 			{
 				com.soffid.iam.api.Password password = getServer().getAccountPassword(command, getSystem().getName());
-				log.info("Checking password "+password.getPassword()+" for "+command);
 				o.put("passwordStatus", validateUserPassword(command, password) ? PasswordValidation.PASSWORD_GOOD : PasswordValidation.PASSWORD_WRONG );
 				
 			}
