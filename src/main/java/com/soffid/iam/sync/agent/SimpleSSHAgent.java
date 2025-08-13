@@ -131,7 +131,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 	}
 
 	protected String getTestCommand() {
-		return "whoami";
+		return "true";
 	}
 
 	protected boolean useSudo() {
@@ -564,7 +564,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			String group = (String) params.get("group");
 			if (user != null && group != null) {
 				try {
-					execute(sudoprefix+"adduser "+quote(user)+" "+quote(group));
+					execute(sudoprefix+"usermod -a "+quote(user)+" -G "+quote(group));
 				} catch (ExecutionException e) {
 					throw new InternalErrorException("Error granting group "+group+" to "+user, e);
 				}
@@ -575,7 +575,7 @@ public class SimpleSSHAgent extends Agent implements UserMgr, ReconcileMgr2, Ext
 			String group = (String) params.get("group");
 			if (user != null && group != null) {
 				try {
-					execute(sudoprefix+"deluser "+quote(user)+" "+quote(group));
+					execute(sudoprefix+"usermod -R "+quote(user)+" -G "+quote(group));
 				} catch (ExecutionException e) {
 					throw new InternalErrorException("Error granting group "+group+" to "+user, e);
 				}
