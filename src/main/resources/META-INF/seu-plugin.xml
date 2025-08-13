@@ -232,4 +232,12 @@
 		<authoritativeSource>false</authoritativeSource>
 		<enableAttributeMapping>true</enableAttributeMapping>
 	</agent>
+	<agent>
+		<name>Simple ExtremeXOS SSH Agent</name>
+		<javaClass>com.soffid.iam.sync.agent.ExtremxosSSHAgent</javaClass>
+		<userInterface>SimpleSSHAgent.zul</userInterface>
+		<enableAccessControl>false</enableAccessControl>
+		<authoritativeSource>false</authoritativeSource>
+		<enableAttributeMapping>true</enableAttributeMapping>
+	</agent>
 </seuServerPlugin>
