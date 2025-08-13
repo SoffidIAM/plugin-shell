@@ -74,7 +74,7 @@ public class SSHAgent extends AbstractShellAgent   implements ExtensibleObjectMg
 
 		super.init ();
 		
-		actualExecute("whoami");
+		actualExecute("true");
 	}
 
 
